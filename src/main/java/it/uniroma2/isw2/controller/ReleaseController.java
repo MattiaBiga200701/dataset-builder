@@ -23,6 +23,20 @@ public class ReleaseController {
     }
 
     /**
+     * Recupera tutte le release ordinate e indicizzate e mantiene il primo 34%,
+     * arrotondato per difetto, scartando le release piu recenti come nella milestone 1.
+     * Gli indici assegnati sull'elenco completo vengono conservati.
+     */
+    public List<Release> getSelectedReleases(String projectName) throws IOException, JSONException {
+        List<Release> releases = getReleases(projectName);
+        int count = (int) ((long) releases.size() * 34 / 100);
+        if (count == 0) {
+            throw new IllegalArgumentException("Release insufficienti: il 34% per difetto e' zero.");
+        }
+        return List.copyOf(releases.subList(0, count));
+    }
+
+    /**
      * Restituisce le release in ordine cronologico, con indici progressivi da 1.
      * Gli errori di recupero vengono propagati al chiamante.
      */
