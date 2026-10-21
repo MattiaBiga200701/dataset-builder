@@ -5,8 +5,8 @@ package it.uniroma2.isw2.model.entity;
  * I valori null rappresentano informazioni non ancora disponibili o calcolate.
  */
 public class DatasetEntry {
-    /** Colonna CSV: Project Name. */
-    private String projectName;
+    /** Colonna CSV: Project Name, condivisa da tutte le entry. */
+    private static String projectName;
 
     /** Colonna CSV: Class Name. */
     private String className;
@@ -80,12 +80,12 @@ public class DatasetEntry {
     /** Colonna CSV: Bugginess. */
     private String bugginess;
 
-    public String getProjectName() {
+    public static String getProjectName() {
         return projectName;
     }
 
-    public void setProjectName(String projectName) {
-        this.projectName = projectName;
+    public static void setProjectName(String projectName) {
+        DatasetEntry.projectName = projectName;
     }
 
     public String getClassName() {

@@ -7,59 +7,34 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.LinkedHashSet;
 
-/** Recupera le release una volta e prepara le associazioni con le relative classi. */
+/** Accesso a Git per recuperare commit e percorsi Java di una release. */
 public class ReleaseClassesDAO {
-    private final ReleaseDAO releaseDAO;
     private final Path repositoryPath;
 
     public ReleaseClassesDAO() {
-        this(new ReleaseDAO());
-    }
-
-    public ReleaseClassesDAO(ReleaseDAO releaseDAO) {
-        this(releaseDAO, Path.of("../StormDataset/repositories/storm.git"));
+        this(Path.of("../StormDataset/repositories/storm.git"));
     }
 
     /** Il percorso deve indicare un repository locale con i tag delle release. */
-    public ReleaseClassesDAO(ReleaseDAO releaseDAO, Path repositoryPath) {
-        this.releaseDAO = Objects.requireNonNull(releaseDAO, "releaseDAO");
+    public ReleaseClassesDAO(Path repositoryPath) {
         this.repositoryPath = Objects.requireNonNull(repositoryPath, "repositoryPath").toAbsolutePath();
     }
 
-    /**
-     * Crea un oggetto per ogni release del primo 34%, ordinato cronologicamente.
-     * Risolve il commit dal tag e legge tutti i percorsi Java del suo albero.
-     * La chiamata a Jira avviene prima del ciclo, una sola volta per esecuzione.
-     */
-    public List<ReleaseClasses> getReleaseClasses(String projectName) throws IOException {
-        List<Release> releases = new ArrayList<>(releaseDAO.getReleases(projectName));
-        releases.sort(Comparator.comparing(Release::getDate));
-        for (int i = 0; i < releases.size(); i++) {
-            releases.get(i).setIndex(i + 1);
-        }
-        int count = (int) ((long) releases.size() * 34 / 100);
-        if (count == 0) {
-            throw new IllegalArgumentException("Release insufficienti: il 34% per difetto e' zero.");
-        }
-
-        List<ReleaseClasses> result = new ArrayList<>();
+    /** Risolve il commit dal tag e legge tutti i percorsi Java del suo albero. */
+    public ReleaseClasses getReleaseClasses(Release release) throws IOException {
+        Objects.requireNonNull(release, "release");
         Set<String> tags = new LinkedHashSet<>(runGit("tag", "--list").lines().toList());
-        for (Release release : releases.subList(0, count)) {
-            ReleaseClasses releaseClasses = new ReleaseClasses();
-            releaseClasses.setRelease(release);
-            releaseClasses.setCommitHash(resolveCommit(release, tags));
-            releaseClasses.setClassPaths(getClassPaths(releaseClasses.getCommitHash()));
-            result.add(releaseClasses);
-        }
+        ReleaseClasses result = new ReleaseClasses();
+        result.setRelease(release);
+        result.setCommitHash(resolveCommit(release, tags));
+        result.setClassPaths(getClassPaths(result.getCommitHash()));
         return result;
     }
-
     /** Risolve anche i tag annotati al commit, senza usare la data come fallback. */
     private String resolveCommit(Release release, Set<String> tags) throws IOException {
         String version = release.getVersionName();
@@ -116,3 +91,4 @@ public class ReleaseClassesDAO {
         }
     }
 }
+
