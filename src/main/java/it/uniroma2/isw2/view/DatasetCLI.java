@@ -11,6 +11,7 @@ public class DatasetCLI {
 
     public void start() {
 
+
         Scanner input = new Scanner(System.in);
 
         while (true) {
@@ -43,7 +44,8 @@ public class DatasetCLI {
 
                 System.out.println("Costruzione del file CSV di base in corso...");
                 Path output = controller.createBaseCsv(datasets);
-                System.out.println("Costruzione del CSV di base completata: " + output);
+                System.out.println("Creazione confermata: il file CSV di base e' stato scritto e chiuso correttamente.");
+                System.out.println("File creato: " + output);
 
             } catch (IOException | RuntimeException exception) {
                 System.err.println("Costruzione del dataset fallita: " + exception.getMessage());

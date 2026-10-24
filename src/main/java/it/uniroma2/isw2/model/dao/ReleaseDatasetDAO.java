@@ -134,6 +134,9 @@ public class ReleaseDatasetDAO {
                 }
             }
         }
+        if (!Files.isRegularFile(output) || Files.size(output) == 0) {
+            throw new IOException("Creazione del CSV non confermata: " + output);
+        }
         return output;
     }
 
