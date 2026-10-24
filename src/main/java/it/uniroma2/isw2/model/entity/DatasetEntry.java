@@ -7,7 +7,7 @@ public class DatasetEntry {
 
     private Release release;
 
-    private Integer size;
+    private Integer loc;
 
     private Integer locTouched;
 
@@ -75,12 +75,12 @@ public class DatasetEntry {
         this.release = release;
     }
 
-    public Integer getSize() {
-        return size;
+    public Integer getLOC() {
+        return loc;
     }
 
-    public void setSize(Integer size) {
-        this.size = size;
+    public void setLOC(Integer loc) {
+        this.loc = loc;
     }
 
     public Integer getLocTouched() {

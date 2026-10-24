@@ -1,4 +1,4 @@
-Project Name,Class Name,Release ID,Size,LOC Touched,NR,Nfix,Nauth,LOC Added,Max LOC Added,Average LOC Added,Churn,Max Churn,Average Churn,Change Set Size,Max Change Set,Average Change Set,Age,Weighted Age,Mean NS,Mean LA,Mean LD,Mean ND,NSmells,Bugginess
+Project Name,Class Name,Release ID,LOC,LOC Touched,NR,Nfix,Nauth,LOC Added,Max LOC Added,Average LOC Added,Churn,Max Churn,Average Churn,Change Set Size,Max Change Set,Average Change Set,Age,Weighted Age,Mean NS,Mean LA,Mean LD,Mean ND,NSmells,Bugginess
 "STORM","storm-core/src/jvm/backtype/storm/Config.java",1,,,,,,,,,,,,,,,,,,,,,,
 "STORM","storm-core/src/jvm/backtype/storm/ConfigValidation.java",1,,,,,,,,,,,,,,,,,,,,,,
 "STORM","storm-core/src/jvm/backtype/storm/Constants.java",1,,,,,,,,,,,,,,,,,,,,,,

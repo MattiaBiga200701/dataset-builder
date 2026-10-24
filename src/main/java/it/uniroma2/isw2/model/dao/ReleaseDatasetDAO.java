@@ -4,19 +4,29 @@ import it.uniroma2.isw2.model.entity.DatasetEntry;
 import it.uniroma2.isw2.model.entity.Release;
 import it.uniroma2.isw2.model.entity.ReleaseDataset;
 import java.io.IOException;
+import java.io.BufferedWriter;
+import it.uniroma2.isw2.utils.Feature;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Files;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.LinkedHashSet;
 
-/** Accesso a Git per recuperare commit e percorsi Java di una release. */
+/** Recupera il commit della release e scrive il dataset di base. */
 public class ReleaseDatasetDAO {
     private final Path repositoryPath;
+
+    public ReleaseDataset createReleaseDataset(Release release, String commitHash,
+                                               List<DatasetEntry> entries) {
+        ReleaseDataset dataset = new ReleaseDataset();
+        dataset.setRelease(release);
+        dataset.setCommitHash(commitHash);
+        dataset.setEntries(entries);
+        return dataset;
+    }
 
     public ReleaseDatasetDAO() {
         this(Path.of("../StormDataset/repositories/storm.git"));
@@ -27,24 +37,17 @@ public class ReleaseDatasetDAO {
         this.repositoryPath = Objects.requireNonNull(repositoryPath, "repositoryPath").toAbsolutePath();
     }
 
-    /** Risolve il commit dal tag e crea le entry delle classi Java, con metriche da calcolare. */
-    public ReleaseDataset getReleaseDataset(Release release) throws IOException {
+    public Path getRepositoryPath() {
+        return repositoryPath;
+    }
+
+    public String getCommitHash(Release release) throws IOException {
         Objects.requireNonNull(release, "release");
         prepareRepository();
         Set<String> tags = new LinkedHashSet<>(runGit("tag", "--list").lines().toList());
-        ReleaseDataset result = new ReleaseDataset();
-        result.setRelease(release);
-        result.setCommitHash(resolveCommit(release, tags));
-        List<DatasetEntry> entries = new ArrayList<>();
-        for (String classPath : getClassPaths(result.getCommitHash())) {
-            DatasetEntry entry = new DatasetEntry();
-            entry.setClassName(classPath);
-            entry.setRelease(release);
-            entries.add(entry);
-        }
-        result.setEntries(entries);
-        return result;
+        return resolveCommit(release, tags);
     }
+
     private void prepareRepository() throws IOException {
         if (!Files.exists(repositoryPath)) {
             Files.createDirectories(repositoryPath.getParent());
@@ -94,15 +97,6 @@ public class ReleaseDatasetDAO {
         return commits.iterator().next();
     }
 
-    /** Percorsi relativi al repository, inclusi test e interfacce, senza checkout. */
-    private List<String> getClassPaths(String commitHash) throws IOException {
-        String tree = runGit("ls-tree", "-r", "-z", "--name-only", commitHash);
-        return Arrays.stream(tree.split("\u0000"))
-                .filter(path -> path.endsWith(".java"))
-                .sorted()
-                .toList();
-    }
-
     private String runGit(String... arguments) throws IOException {
         List<String> command = new ArrayList<>(List.of("git", "-C", repositoryPath.toString()));
         command.addAll(List.of(arguments));
@@ -121,5 +115,34 @@ public class ReleaseDatasetDAO {
             process.getInputStream().close();
         }
     }
+    public Path createBaseCsv(List<ReleaseDataset> datasets) throws IOException {
+        Path output = Path.of("output", "dataset_base.csv").toAbsolutePath();
+        Files.createDirectories(output.getParent());
+        try (BufferedWriter writer = Files.newBufferedWriter(output, StandardCharsets.UTF_8)) {
+            writer.write("Project Name,Class Name,Release ID");
+            for (Feature feature : Feature.values()) {
+                writer.write("," + feature.getColumnName());
+            }
+            writer.write("\r\n");
+            for (ReleaseDataset dataset : datasets) {
+                for (DatasetEntry entry : dataset.getEntries()) {
+                    writer.write(csvValue(DatasetEntry.getProjectName()));
+                    writer.write("," + csvValue(entry.getClassName()));
+                    writer.write("," + entry.getRelease().getIndex());
+                    writer.write(",".repeat(Feature.values().length));
+                    writer.write("\r\n");
+                }
+            }
+        }
+        return output;
+    }
+
+    private String csvValue(String value) {
+        if (value == null) {
+            return "";
+        }
+        return "\"" + value.replace("\"", "\"\"") + "\"";
+    }
+
 }
 

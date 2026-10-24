@@ -1,8 +1,8 @@
 package it.uniroma2.isw2.utils;
 
-/** Feature e target nello stesso ordine e con gli stessi nomi di StormDataset. */
+/** Nomi delle colonne delle feature e del target del dataset. */
 public enum Feature {
-    SIZE("Size"),
+    LOC("LOC"),
     LOC_TOUCHED("LOC Touched"),
     NR("NR"),
     NFIX("Nfix"),

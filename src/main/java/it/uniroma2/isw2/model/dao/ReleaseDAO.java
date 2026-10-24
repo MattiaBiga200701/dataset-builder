@@ -15,14 +15,17 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 
 /** Accesso alle versioni Jira con la metodologia dello script GetVersionsFromJIRA. */
 public class ReleaseDAO {
 
+
     /**
-     * Recupera le release datate, senza ordinarle o assegnare l'indice.
+     * Recupera le release datate, le ordina e assegna gli indici a partire da 1.
      * Come nello script del professore, a parita di data prevale l'ultima versione letta.
      * Gli errori HTTP o JSON vengono propagati al chiamante.
      */
@@ -55,9 +58,17 @@ public class ReleaseDAO {
             }
         }
 
+        Collections.sort(releases, new Comparator<LocalDateTime>() {
+            @Override
+            public int compare(LocalDateTime o1, LocalDateTime o2) {
+                return o1.compareTo(o2);
+            }
+        });
+
         List<Release> result = new ArrayList<>();
         for (LocalDateTime date : releases) {
             Release release = new Release();
+            release.setIndex(result.size() + 1);
             release.setVersionId(releaseID.get(date));
             release.setVersionName(releaseNames.get(date));
             release.setDate(date);
