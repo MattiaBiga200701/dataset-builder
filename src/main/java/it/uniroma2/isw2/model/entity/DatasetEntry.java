@@ -1,83 +1,54 @@
 package it.uniroma2.isw2.model.entity;
 
-/**
- * Una riga del dataset: una classe in una specifica release.
- * I valori null rappresentano informazioni non ancora disponibili o calcolate.
- */
 public class DatasetEntry {
-    /** Colonna CSV: Project Name, condivisa da tutte le entry. */
     private static String projectName;
 
-    /** Colonna CSV: Class Name. */
     private String className;
 
-    /** Colonna CSV: Release ID. */
-    private Integer releaseId;
+    private Release release;
 
-    /** Colonna CSV: Size. */
     private Integer size;
 
-    /** Colonna CSV: LOC Touched. */
     private Integer locTouched;
 
-    /** Colonna CSV: NR. */
     private Integer nr;
 
-    /** Colonna CSV: Nfix. */
     private Integer nfix;
 
-    /** Colonna CSV: Nauth. */
     private Integer nauth;
 
-    /** Colonna CSV: LOC Added. */
     private Integer locAdded;
 
-    /** Colonna CSV: Max LOC Added. */
     private Integer maxLocAdded;
 
-    /** Colonna CSV: Average LOC Added. */
     private Double averageLocAdded;
 
-    /** Colonna CSV: Churn. */
     private Integer churn;
 
-    /** Colonna CSV: Max Churn. */
     private Integer maxChurn;
 
-    /** Colonna CSV: Average Churn. */
     private Double averageChurn;
 
-    /** Colonna CSV: Change Set Size. */
     private Integer changeSetSize;
 
-    /** Colonna CSV: Max Change Set. */
     private Integer maxChangeSet;
 
-    /** Colonna CSV: Average Change Set. */
     private Double averageChangeSet;
 
-    /** Colonna CSV: Age. */
     private Double age;
 
-    /** Colonna CSV: Weighted Age. */
     private Double weightedAge;
 
-    /** Colonna CSV: Mean NS. */
     private Double meanNs;
 
-    /** Colonna CSV: Mean LA. */
     private Double meanLa;
 
-    /** Colonna CSV: Mean LD. */
     private Double meanLd;
 
-    /** Colonna CSV: Mean ND. */
     private Double meanNd;
 
-    /** Colonna CSV: NSmells. */
     private Integer nSmells;
 
-    /** Colonna CSV: Bugginess. */
     private String bugginess;
 
     public static String getProjectName() {
@@ -96,12 +67,12 @@ public class DatasetEntry {
         this.className = className;
     }
 
-    public Integer getReleaseId() {
-        return releaseId;
+    public Release getRelease() {
+        return release;
     }
 
-    public void setReleaseId(Integer releaseId) {
-        this.releaseId = releaseId;
+    public void setRelease(Release release) {
+        this.release = release;
     }
 
     public Integer getSize() {

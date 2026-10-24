@@ -2,12 +2,14 @@ package it.uniroma2.isw2.model.entity;
 
 import java.util.List;
 
-/** Le classi presenti nel commit di una specifica release. */
-public class ReleaseClasses {
+
+public class ReleaseDataset {
+
     private Release release;
+
     private String commitHash;
-    /** Percorsi dei file Java relativi alla radice del repository. */
-    private List<String> classPaths;
+
+    private List<DatasetEntry> entries;
 
     public Release getRelease() {
         return release;
@@ -25,11 +27,11 @@ public class ReleaseClasses {
         this.commitHash = commitHash;
     }
 
-    public List<String> getClassPaths() {
-        return classPaths;
+    public List<DatasetEntry> getEntries() {
+        return entries;
     }
 
-    public void setClassPaths(List<String> classPaths) {
-        this.classPaths = classPaths;
+    public void setEntries(List<DatasetEntry> entries) {
+        this.entries = entries;
     }
 }

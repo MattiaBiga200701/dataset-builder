@@ -1,10 +1,12 @@
 package it.uniroma2.isw2.model.dao;
 
+import it.uniroma2.isw2.model.entity.DatasetEntry;
 import it.uniroma2.isw2.model.entity.Release;
-import it.uniroma2.isw2.model.entity.ReleaseClasses;
+import it.uniroma2.isw2.model.entity.ReleaseDataset;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -13,28 +15,57 @@ import java.util.Set;
 import java.util.LinkedHashSet;
 
 /** Accesso a Git per recuperare commit e percorsi Java di una release. */
-public class ReleaseClassesDAO {
+public class ReleaseDatasetDAO {
     private final Path repositoryPath;
 
-    public ReleaseClassesDAO() {
+    public ReleaseDatasetDAO() {
         this(Path.of("../StormDataset/repositories/storm.git"));
     }
 
     /** Il percorso deve indicare un repository locale con i tag delle release. */
-    public ReleaseClassesDAO(Path repositoryPath) {
+    public ReleaseDatasetDAO(Path repositoryPath) {
         this.repositoryPath = Objects.requireNonNull(repositoryPath, "repositoryPath").toAbsolutePath();
     }
 
-    /** Risolve il commit dal tag e legge tutti i percorsi Java del suo albero. */
-    public ReleaseClasses getReleaseClasses(Release release) throws IOException {
+    /** Risolve il commit dal tag e crea le entry delle classi Java, con metriche da calcolare. */
+    public ReleaseDataset getReleaseDataset(Release release) throws IOException {
         Objects.requireNonNull(release, "release");
+        prepareRepository();
         Set<String> tags = new LinkedHashSet<>(runGit("tag", "--list").lines().toList());
-        ReleaseClasses result = new ReleaseClasses();
+        ReleaseDataset result = new ReleaseDataset();
         result.setRelease(release);
         result.setCommitHash(resolveCommit(release, tags));
-        result.setClassPaths(getClassPaths(result.getCommitHash()));
+        List<DatasetEntry> entries = new ArrayList<>();
+        for (String classPath : getClassPaths(result.getCommitHash())) {
+            DatasetEntry entry = new DatasetEntry();
+            entry.setClassName(classPath);
+            entry.setRelease(release);
+            entries.add(entry);
+        }
+        result.setEntries(entries);
         return result;
     }
+    private void prepareRepository() throws IOException {
+        if (!Files.exists(repositoryPath)) {
+            Files.createDirectories(repositoryPath.getParent());
+            Process process = new ProcessBuilder("git", "clone", "--bare",
+                    "https://github.com/apache/storm.git", repositoryPath.toString())
+                    .inheritIO().start();
+            try {
+                if (process.waitFor() != 0) {
+                    throw new IOException("Clone STORM fallito: " + repositoryPath);
+                }
+            } catch (InterruptedException exception) {
+                process.destroyForcibly();
+                Thread.currentThread().interrupt();
+                throw new IOException("Download di STORM interrotto", exception);
+            }
+        }
+        if (!runGit("rev-parse", "--is-shallow-repository").strip().equals("false")) {
+            throw new IOException("Serve la cronologia Git completa: " + repositoryPath);
+        }
+    }
+
     /** Risolve anche i tag annotati al commit, senza usare la data come fallback. */
     private String resolveCommit(Release release, Set<String> tags) throws IOException {
         String version = release.getVersionName();
