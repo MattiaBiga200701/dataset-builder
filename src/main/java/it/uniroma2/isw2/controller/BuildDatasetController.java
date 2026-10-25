@@ -12,21 +12,21 @@ import java.util.List;
 import java.util.Objects;
 
 /** Coordina recupero Jira, selezione delle release e recupero degli snapshot Git. */
-public class ReleaseDatasetController {
+public class BuildDatasetController {
     private final DatasetEntryDAO datasetEntryDAO;
     private final ReleaseDAO releaseDAO;
     private final ReleaseDatasetDAO releaseDatasetDAO;
 
-    public ReleaseDatasetController() {
+    public BuildDatasetController() {
         this(new ReleaseDAO(), new ReleaseDatasetDAO());
     }
 
-    public ReleaseDatasetController(ReleaseDAO releaseDAO,
+    public BuildDatasetController(ReleaseDAO releaseDAO,
                                     ReleaseDatasetDAO releaseDatasetDAO) {
         this(releaseDAO, releaseDatasetDAO, new DatasetEntryDAO(releaseDatasetDAO.getRepositoryPath()));
     }
 
-    public ReleaseDatasetController(ReleaseDAO releaseDAO, ReleaseDatasetDAO releaseDatasetDAO,
+    public BuildDatasetController(ReleaseDAO releaseDAO, ReleaseDatasetDAO releaseDatasetDAO,
                                     DatasetEntryDAO datasetEntryDAO) {
         this.datasetEntryDAO = Objects.requireNonNull(datasetEntryDAO, "datasetEntryDAO");
         this.releaseDAO = Objects.requireNonNull(releaseDAO, "releaseDAO");

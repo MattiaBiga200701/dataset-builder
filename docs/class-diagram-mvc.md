@@ -17,7 +17,7 @@ namespace View {
     }
 }
 namespace Controller {
-    class ReleaseDatasetController {
+    class BuildDatasetController {
         -DatasetEntryDAO datasetEntryDAO
         -ReleaseDAO releaseDAO
         -ReleaseDatasetDAO releaseDatasetDAO
@@ -98,13 +98,13 @@ namespace Utils {
 }
 
 Main ..> DatasetCLI : crea e avvia
-DatasetCLI ..> ReleaseDatasetController : crea e invoca
+DatasetCLI ..> BuildDatasetController : crea e invoca
 DatasetCLI ..> ReleaseDataset : legge risultati
-ReleaseDatasetController --> "1" ReleaseDAO : usa
-ReleaseDatasetController --> "1" ReleaseDatasetDAO : usa
-ReleaseDatasetController --> "1" DatasetEntryDAO : usa
-ReleaseDatasetController ..> Release : seleziona primo 34%
-ReleaseDatasetController ..> ReleaseDataset : restituisce
+BuildDatasetController --> "1" ReleaseDAO : usa
+BuildDatasetController --> "1" ReleaseDatasetDAO : usa
+BuildDatasetController --> "1" DatasetEntryDAO : usa
+BuildDatasetController ..> Release : seleziona primo 34%
+BuildDatasetController ..> ReleaseDataset : restituisce
 ReleaseDAO ..> Release : crea da Jira
 ReleaseDatasetDAO ..> Release : risolve tag Git
 ReleaseDatasetDAO ..> ReleaseDataset : crea ed esporta
@@ -123,7 +123,7 @@ FeatureComputingDAO --> "0..1" ReleaseDataset : releaseDataset
 | Livello | Classi | Responsabilità |
 | --- | --- | --- |
 | View | `DatasetCLI` | Gestisce menu, input, messaggi, errori e visualizzazione del risultato. |
-| Controller | `ReleaseDatasetController` | Coordina i DAO, seleziona il primo 34% delle release e avvia la costruzione/esportazione del dataset. |
+| Controller | `BuildDatasetController` | Coordina i DAO, seleziona il primo 34% delle release e avvia la costruzione/esportazione del dataset. |
 | Model — DAO | `ReleaseDAO`, `ReleaseDatasetDAO`, `DatasetEntryDAO` | Recuperano release da Jira, commit e percorsi Java da Git e scrivono il CSV. |
 | Model — entità | `Release`, `ReleaseDataset`, `DatasetEntry` | Rappresentano release, snapshot del dataset e righe con metriche. |
 | Model — DAO non integrato | `FeatureComputingDAO` | Attualmente espone solo getter/setter di un dataset; non calcola feature e non è richiamato dal flusso MVC. |

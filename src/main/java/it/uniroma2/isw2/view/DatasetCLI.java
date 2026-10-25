@@ -1,6 +1,6 @@
 package it.uniroma2.isw2.view;
 
-import it.uniroma2.isw2.controller.ReleaseDatasetController;
+import it.uniroma2.isw2.controller.BuildDatasetController;
 import it.uniroma2.isw2.model.entity.ReleaseDataset;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -30,7 +30,7 @@ public class DatasetCLI {
             }
             try {
 
-                ReleaseDatasetController controller = new ReleaseDatasetController();
+                BuildDatasetController controller = new BuildDatasetController();
 
                 System.out.println("Caricamento STORM: release da Jira e classi da Git."
                         + " Il repository viene scaricato automaticamente se assente...");
