@@ -1,6 +1,7 @@
 package it.uniroma2.isw2.view;
 
 import it.uniroma2.isw2.controller.BuildDatasetController;
+import it.uniroma2.isw2.controller.FeatureComputingController;
 import it.uniroma2.isw2.model.entity.ReleaseDataset;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -47,8 +48,37 @@ public class DatasetCLI {
                 System.out.println("Creazione confermata: il file CSV di base e' stato scritto e chiuso correttamente.");
                 System.out.println("File creato: " + output);
 
+                showFeatureMenu(input, datasets);
+                return;
+
             } catch (IOException | RuntimeException exception) {
                 System.err.println("Costruzione del dataset fallita: " + exception.getMessage());
+            }
+        }
+    }
+
+    private void showFeatureMenu(Scanner input, List<ReleaseDataset> datasets) {
+        while (true) {
+            System.out.println("\n1. Crea Dataset.csv con le feature calcolate");
+            System.out.println("0. Esci");
+
+            String choice = readLine(input, "Scelta: ");
+            if (choice == null || choice.equals("0")) {
+                return;
+            }
+            if (!choice.equals("1")) {
+                System.out.println("Scelta non valida.");
+                continue;
+            }
+
+            try {
+                System.out.println("Creazione del CSV con calcolo di LOC e LOC Touched in corso...");
+                Path output = new FeatureComputingController().createDatasetCsv(datasets);
+                System.out.println("File creato: " + output);
+                System.out.println("LOC e LOC Touched compilati; le altre feature sono ancora da implementare.");
+                return;
+            } catch (IOException | RuntimeException exception) {
+                System.err.println("Calcolo delle feature fallito: " + exception.getMessage());
             }
         }
     }
