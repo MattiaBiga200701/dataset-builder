@@ -33,12 +33,10 @@ public class ReleaseDatasetController {
         this.releaseDatasetDAO = Objects.requireNonNull(releaseDatasetDAO, "releaseDatasetDAO");
     }
 
-    /** Recupera le release da Jira una sola volta prima del ciclo su Git. */
-    public List<ReleaseDataset> getReleaseDataset() throws IOException {
-        return this.getReleaseDataset("STORM");
-    }
 
-    public List<ReleaseDataset> getReleaseDataset(String projectName) throws IOException {
+
+    public List<ReleaseDataset> getReleaseDataset() throws IOException {
+        String projectName = "STORM";
         List<Release> releases = getSelectedReleases(projectName);
         datasetEntryDAO.setProjectName(projectName);
         List<ReleaseDataset> result = new ArrayList<>();
