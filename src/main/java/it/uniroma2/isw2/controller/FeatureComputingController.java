@@ -35,6 +35,7 @@ public class FeatureComputingController {
         Objects.requireNonNull(datasets, "datasets");
         try (FeatureComputingDAO dao = featureComputingDAO) {
             dao.readBaseCsv(baseCsv, output);
+            dao.prepareHistory(datasets.stream().map(ReleaseDataset::getCommitHash).toList());
             Map<String, Integer> locByBlob = new HashMap<>();
             String previousCommit = null;
             for (ReleaseDataset dataset : datasets) {

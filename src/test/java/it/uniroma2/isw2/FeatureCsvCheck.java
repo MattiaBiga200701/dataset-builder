@@ -22,6 +22,7 @@ public class FeatureCsvCheck {
                 + "7,\"A,\"\"test\"\".java\",,2,STORM,\"keep\r\nthis\",\r\n"
                 + "8,\"A,\"\"test\"\".java\",,1,STORM,preserved,\r\n";
         FeatureComputingDAO dao = new FeatureComputingDAO() {
+            @Override public void prepareHistory(List<String> commits) { }
             @Override public void readBaseCsv(Path input, Path target) throws IOException {
                 // Isola i file del test senza cambiare i percorsi del controller.
                 if (input.equals(Path.of("output", "dataset_base.csv"))) {

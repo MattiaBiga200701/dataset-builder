@@ -101,6 +101,10 @@ public class FeatureComputingDAO implements AutoCloseable {
         return historyReader.readChanges(previousCommit, currentCommit);
     }
 
+    public void prepareHistory(List<String> commits) throws IOException {
+        historyReader.prepareHistory(commits);
+    }
+
     /** Mantiene ordine delle righe, intestazione e celle non aggiornate. */
     public void writeDatasetCsv() throws IOException {
         if (outputPath == null) throw new IOException("Caricare prima la copia del CSV di base");
@@ -129,6 +133,7 @@ public class FeatureComputingDAO implements AutoCloseable {
 
     @Override
     public void close() throws IOException {
+        historyReader.clear();
         if (sourceReader != null) {
             try { sourceReader.close(); }
             finally { sourceReader = null; }
