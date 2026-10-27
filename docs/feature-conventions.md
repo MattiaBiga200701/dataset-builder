@@ -4,6 +4,10 @@
 
 Righe fisiche contenenti codice, escludendo righe vuote e soli commenti. Il sorgente viene letto al commit della release, con cache del risultato per blob ID.
 
+
+Una classe nel dataset può avere LOC pari a un numero x e LOC touched pari a 0, poichè significa che magari in quella release la classe già esisteva e non è stata toccata.
+
+Quindi mantenere La colonna LOC touched anche se ha molti 0 può essere utile perchè indica che una classe non è stata toccata quindi se fosse buggata in una release ed ha LOC touched pari a 0 continua ad essere buggata
 ## LOC Touched
 
 Somma delle righe fisiche aggiunte e cancellate in tutte le revisioni considerate, secondo `git log --numstat`. Comprende modifiche a commenti e righe vuote: non applica il filtro lessicale del calcolo LOC al diff.
@@ -16,6 +20,8 @@ Somma delle righe fisiche aggiunte e cancellate in tutte le revisioni considerat
 - Percorso senza modifiche nell'intervallo: valore zero.
 - Le coppie `int[]` hanno sempre due elementi: indice 0 = aggiunte, indice 1 = cancellazioni. Sono raggruppate per percorso, senza entity aggiuntive.
 - File Java rilevati da Git come binari: errore esplicito, senza inventare un conteggio.
+
+Scelta all'interno della stessa release.
 
 Il DAO copia il CSV di base nel file di output e legge la copia una sola volta. Righe e indici sono attributi del DAO, senza una classe interna CsvDataset. Il controller calcola le metriche e il DAO aggiorna le celle per progetto, percorso e release, poi salva la copia. Il file finale conserva ordine delle righe e celle non aggiornate. In caso di errore durante il calcolo, la copia resta con i valori di base; il file originale non viene modificato.
 
