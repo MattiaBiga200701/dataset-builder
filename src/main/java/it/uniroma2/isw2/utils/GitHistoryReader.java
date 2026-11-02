@@ -74,11 +74,18 @@ public final class GitHistoryReader {
             Set<String> paths = pending.remove(commit);
             if (paths == null || !interval.contains(commit)) continue;
             List<String> ancestors = parents.get(commit);
+            int[] commitChange = null;
             for (String currentPath : paths) {
                 // Attraversa i merge senza contarli come revisioni.
                 if (ancestors.size() <= 1) {
                     int[] change = revisions.getOrDefault(commit, Map.of()).get(currentPath);
-                    if (change != null) result.add(change);
+                    if (change != null) {
+                        // Piu' percorsi della stessa storia possono convergere sullo stesso commit.
+                        // Una sola revisione, conservando tutte le righe toccate.
+                        if (commitChange == null) commitChange = new int[2];
+                        commitChange[0] = Math.addExact(commitChange[0], change[0]);
+                        commitChange[1] = Math.addExact(commitChange[1], change[1]);
+                    }
                     // Un nuovo file non eredita la storia di un vecchio file omonimo.
                     if (additions.getOrDefault(commit, Set.of()).contains(currentPath)) continue;
                 }
@@ -89,6 +96,7 @@ public final class GitHistoryReader {
                     }
                 }
             }
+            if (commitChange != null) result.add(commitChange);
         }
         return result;
     }
@@ -148,9 +156,7 @@ public final class GitHistoryReader {
                     int added = Integer.parseInt(fields[0]);
                     int deleted = Integer.parseInt(fields[1]);
                     if (added < 0 || deleted < 0) throw new NumberFormatException("Conteggio negativo");
-                    if (added != 0 || deleted != 0) {
-                        revisions.computeIfAbsent(commit, key -> new HashMap<>()).put(path, new int[]{added, deleted});
-                    }
+                    revisions.computeIfAbsent(commit, key -> new HashMap<>()).put(path, new int[]{added, deleted});
                 } catch (NumberFormatException exception) {
                     throw new IOException("Statistiche non numeriche per " + path, exception);
                 }

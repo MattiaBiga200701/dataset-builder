@@ -3,6 +3,7 @@ package it.uniroma2.isw2.controller;
 import it.uniroma2.isw2.model.dao.FeatureComputingDAO;
 import it.uniroma2.isw2.metrics.LocCalculator;
 import it.uniroma2.isw2.metrics.LocTouchedCalculator;
+import it.uniroma2.isw2.metrics.NrCalculator;
 import it.uniroma2.isw2.model.entity.DatasetEntry;
 import it.uniroma2.isw2.model.entity.ReleaseDataset;
 import java.io.IOException;
@@ -17,6 +18,7 @@ public class FeatureComputingController {
     private final FeatureComputingDAO featureComputingDAO;
     private final LocCalculator locCalculator;
     private final LocTouchedCalculator locTouchedCalculator;
+    private final NrCalculator nrCalculator;
 
     public FeatureComputingController() {
         this(new FeatureComputingDAO());
@@ -26,6 +28,7 @@ public class FeatureComputingController {
         this.featureComputingDAO = Objects.requireNonNull(featureComputingDAO, "featureComputingDAO");
         this.locCalculator = new LocCalculator();
         this.locTouchedCalculator = new LocTouchedCalculator();
+        this.nrCalculator = new NrCalculator();
     }
 
     /** Arricchisce il CSV di base mantenendo ordine e dati preesistenti. */
@@ -43,6 +46,7 @@ public class FeatureComputingController {
                 for (DatasetEntry entry : dataset.getEntries()) {
                     locComputing(dataset, entry, locByBlob);
                     locTouchedComputing(entry, changesByFile);
+                    nrComputing(entry, changesByFile);
                     dao.updateEntry(entry);
                 }
                 previousCommit = dataset.getCommitHash();
@@ -56,6 +60,10 @@ public class FeatureComputingController {
                               Map<String, Integer> locByBlob) throws IOException {
         GitSourceReader.Source source = featureComputingDAO.getSource(dataset.getCommitHash(), entry.getClassName());
         entry.setLOC(locByBlob.computeIfAbsent(source.blob(), blob -> locCalculator.calculate(source.text())));
+    }
+
+    private void nrComputing(DatasetEntry entry, Map<String, List<int[]>> changesByFile) {
+        entry.setNr(nrCalculator.calculate(changesByFile.getOrDefault(entry.getClassName(), List.of())));
     }
 
     private void locTouchedComputing(DatasetEntry entry, Map<String, List<int[]>> changesByFile) {

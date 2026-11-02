@@ -67,7 +67,7 @@ public class FeatureComputingDAO implements AutoCloseable {
             }
         }
         for (String name : List.of("Project Name", "Class Name", "Release ID",
-                Feature.LOC.getColumnName(), Feature.LOC_TOUCHED.getColumnName())) {
+                Feature.LOC.getColumnName(), Feature.LOC_TOUCHED.getColumnName(), Feature.NR.getColumnName())) {
             if (!columns.containsKey(name)) throw new IOException("Colonna mancante: " + name);
         }
         for (List<String> row : rows.subList(1, rows.size())) {
@@ -95,6 +95,7 @@ public class FeatureComputingDAO implements AutoCloseable {
         row.set(columns.get(Feature.LOC.getColumnName()), Objects.requireNonNull(entry.getLOC(), "LOC").toString());
         row.set(columns.get(Feature.LOC_TOUCHED.getColumnName()),
                 Objects.requireNonNull(entry.getLocTouched(), "LOC Touched").toString());
+        row.set(columns.get(Feature.NR.getColumnName()), Objects.requireNonNull(entry.getNr(), "NR").toString());
     }
 
     public Map<String, List<int[]>> getChanges(String previousCommit, String currentCommit) throws IOException {
@@ -109,7 +110,7 @@ public class FeatureComputingDAO implements AutoCloseable {
     public void writeDatasetCsv() throws IOException {
         if (outputPath == null) throw new IOException("Caricare prima la copia del CSV di base");
         if (updated.size() != entries.size()) {
-            throw new IOException("Il CSV di base contiene entry senza LOC calcolati");
+            throw new IOException("Il CSV di base contiene entry senza feature calcolate");
         }
         
         try (BufferedWriter writer = Files.newBufferedWriter(outputPath, StandardCharsets.UTF_8)) {

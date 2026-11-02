@@ -35,7 +35,7 @@ public class FeatureCsvCheck {
                 if (current.equals("commit1") && previous != null) throw new AssertionError(previous);
                 if (current.equals("commit2") && !"commit1".equals(previous)) throw new AssertionError(previous);
                 return current.equals("commit1")
-                        ? Map.of("A,\"test\".java", List.of(new int[]{2, 0}, new int[]{3, 1}))
+                        ? Map.of("A,\"test\".java", List.of(new int[]{2, 0}, new int[]{3, 1}, new int[]{0, 0}))
                         : Map.of();
             }
             @Override public GitSourceReader.Source getSource(String commit, String path) {
@@ -58,17 +58,19 @@ public class FeatureCsvCheck {
             FeatureComputingController controller = new FeatureComputingController(dao);
             controller.createDatasetCsv(datasets);
             String expected = "\"NR\",\"Class Name\",\"LOC\",\"Release ID\",\"Project Name\",\"Extra\",\"LOC Touched\"\r\n"
-                    + "\"7\",\"A,\"\"test\"\".java\",\"3\",\"2\",\"STORM\",\"keep\r\nthis\",\"0\"\r\n"
-                    + "\"8\",\"A,\"\"test\"\".java\",\"1\",\"1\",\"STORM\",\"preserved\",\"6\"\r\n";
+                    + "\"0\",\"A,\"\"test\"\".java\",\"3\",\"2\",\"STORM\",\"keep\r\nthis\",\"0\"\r\n"
+                    + "\"3\",\"A,\"\"test\"\".java\",\"1\",\"1\",\"STORM\",\"preserved\",\"6\"\r\n";
             if (!Files.readString(output).equals(expected)) throw new AssertionError(Files.readString(output));
             if (!Files.readString(base).equals(original)) throw new AssertionError("Base modificata");
             expectIOException(() -> controller.createDatasetCsv(List.of(dataset(1))));
             expectIOException(() -> controller.createDatasetCsv(List.of(dataset(1), dataset(3))));
             Files.writeString(base, original + "8,\"A,\"\"test\"\".java\",,1,STORM,duplicate,\r\n");
             expectIOException(() -> dao.readBaseCsv(base, output));
+            Files.writeString(base, original.replace("NR,", "Missing NR,"));
+            expectIOException(() -> dao.readBaseCsv(base, output));
             Files.writeString(base, "Project Name,Class Name,Release ID\n");
             expectIOException(() -> dao.readBaseCsv(base, output));
-            System.out.println("OK: LOC per release, associazione per chiave, ordine, celle preservate, escaping e CSV incoerenti.");
+            System.out.println("OK: LOC, LOC Touched e NR per release, associazione per chiave, ordine, celle preservate, escaping e CSV incoerenti.");
         } finally {
             Files.deleteIfExists(base);
             Files.deleteIfExists(output);

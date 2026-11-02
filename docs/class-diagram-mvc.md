@@ -17,6 +17,13 @@ namespace View {
     }
 }
 namespace Controller {
+    class FeatureComputingController {
+        -FeatureComputingDAO featureComputingDAO
+        -LocCalculator locCalculator
+        -LocTouchedCalculator locTouchedCalculator
+        -NrCalculator nrCalculator
+        +createDatasetCsv(List~ReleaseDataset~ datasets) Path
+    }
     class BuildDatasetController {
         -DatasetEntryDAO datasetEntryDAO
         -ReleaseDAO releaseDAO
@@ -44,9 +51,15 @@ namespace Model_DAO {
         +getEntries(Release release, String commitHash) List~DatasetEntry~
     }
     class FeatureComputingDAO {
-        -ReleaseDataset releaseDataset
-        +getReleaseDataset() ReleaseDataset
-        +setReleaseDataset(ReleaseDataset releaseDataset) void
+        -GitSourceReader sourceReader
+        -GitHistoryReader historyReader
+        +readBaseCsv(Path input, Path output) void
+        +prepareHistory(List~String~ commits) void
+        +getChanges(String previousCommit, String currentCommit) Map
+        +getSource(String commitHash, String classPath) Source
+        +updateEntry(DatasetEntry entry) void
+        +writeDatasetCsv() void
+        +close() void
     }
 }
 namespace Model_Entity {
@@ -89,7 +102,27 @@ namespace Model_Entity {
         -String bugginess
     }
 }
+namespace Model_Calcolo {
+    class LocCalculator {
+        +calculate(String source) int
+    }
+    class LocTouchedCalculator {
+        +calculate(List~int[]~ revisions) int
+    }
+    class NrCalculator {
+        +calculate(List~int[]~ revisions) int
+    }
+}
 namespace Utils {
+    class GitSourceReader {
+        +read(String commit, String path) Source
+        +close() void
+    }
+    class GitHistoryReader {
+        +prepareHistory(List~String~ commits) void
+        +readChanges(String previousCommit, String currentCommit) Map
+        +clear() void
+    }
     class Feature {
         <<enumeration>>
         -String columnName
@@ -115,7 +148,17 @@ DatasetEntryDAO ..> Release : assegna alle entry
 ReleaseDataset --> "0..1" Release : release
 ReleaseDataset --> "0..*" DatasetEntry : entries
 DatasetEntry --> "0..1" Release : release
-FeatureComputingDAO --> "0..1" ReleaseDataset : releaseDataset
+DatasetCLI ..> FeatureComputingController : crea e invoca
+FeatureComputingController --> "1" FeatureComputingDAO : accesso ai dati
+FeatureComputingController --> "1" LocCalculator : delega LOC
+FeatureComputingController --> "1" LocTouchedCalculator : delega LOC Touched
+FeatureComputingController --> "1" NrCalculator : delega NR
+FeatureComputingController ..> ReleaseDataset : itera snapshot
+FeatureComputingController ..> DatasetEntry : valorizza metriche
+FeatureComputingDAO --> "0..1" GitSourceReader : legge sorgenti
+FeatureComputingDAO --> "1" GitHistoryReader : legge revisioni
+FeatureComputingDAO ..> DatasetEntry : aggiorna CSV
+FeatureComputingDAO ..> Feature : identifica colonne
 ```
 
 ## Responsabilità MVC
@@ -126,7 +169,9 @@ FeatureComputingDAO --> "0..1" ReleaseDataset : releaseDataset
 | Controller | `BuildDatasetController` | Coordina i DAO, seleziona il primo 34% delle release e avvia la costruzione/esportazione del dataset. |
 | Model — DAO | `ReleaseDAO`, `ReleaseDatasetDAO`, `DatasetEntryDAO` | Recuperano release da Jira, commit e percorsi Java da Git e scrivono il CSV. |
 | Model — entità | `Release`, `ReleaseDataset`, `DatasetEntry` | Rappresentano release, snapshot del dataset e righe con metriche. |
-| Model — DAO non integrato | `FeatureComputingDAO` | Attualmente espone solo getter/setter di un dataset; non calcola feature e non è richiamato dal flusso MVC. |
+| Controller | `FeatureComputingController` | Coordina lettura, calcolo delle feature e salvataggio. |
+| Model: accesso ai dati | `FeatureComputingDAO`, `GitSourceReader`, `GitHistoryReader` | Gestiscono CSV, sorgenti e cronologia condivisa. |
+| Model: calcolo | `LocCalculator`, `LocTouchedCalculator`, `NrCalculator` | Calcolano le metriche senza dipendenze dalla View. |
 | Supporto | `Main`, `Feature` | Avvio dell'applicazione e definizione dei nomi delle colonne. |
 
 
@@ -137,4 +182,7 @@ FeatureComputingDAO --> "0..1" ReleaseDataset : releaseDataset
 - `0..1` riflette i riferimenti alle entità inizialmente null e assegnabili tramite setter. Nel flusso di costruzione completato ogni dataset e ogni entry ricevono una release.
 - `projectName` è statico: è condiviso da tutte le istanze di `DatasetEntry`.
 - La View legge le entità per contare le entry; i dati vengono quindi restituiti alla View tramite il Controller, senza un meccanismo di notifica/Observer.
-- Il CSV attuale contiene le colonne delle feature, ma i relativi valori sono ancora vuoti.
+- Il primo caso d'uso produce `dataset_base.csv` con le feature vuote; il secondo produce `Dataset.csv` con LOC, LOC Touched e NR valorizzati.
+- `metrics` appartiene logicamente al Model. I lettori Git sono nel package `utils`; `Map` indica `Map<String, List<int[]>>`, con una coppia per commit distinto, incluse revisioni a zero righe.
+- Sono omessi gli attributi interni del DAO per indicizzare il CSV e il campo legacy `releaseDataset`, estraneo al flusso di calcolo.
+- Il dettaglio del secondo caso d'uso e' in [class-diagram-uc2-mvc.md](class-diagram-uc2-mvc.md); le regole delle metriche sono in [feature-conventions.md](feature-conventions.md).

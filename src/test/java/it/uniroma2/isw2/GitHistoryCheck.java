@@ -1,6 +1,7 @@
 package it.uniroma2.isw2;
 
 import it.uniroma2.isw2.metrics.LocTouchedCalculator;
+import it.uniroma2.isw2.metrics.NrCalculator;
 import it.uniroma2.isw2.utils.CsvFormat;
 import it.uniroma2.isw2.utils.GitHistoryReader;
 import java.nio.charset.StandardCharsets;
@@ -130,15 +131,16 @@ public class GitHistoryCheck {
                 String key = (release <= 6 ? release : release + 1) + ":" + row.get(1);
                 if (!row.get(3).equals(expectedLoc.get(key))) throw new AssertionError("LOC cambiati: " + key);
                 if (row.get(4).isBlank() || Integer.parseInt(row.get(4)) < 0) throw new AssertionError("LOC Touched mancanti");
+                if (row.get(5).isBlank() || Integer.parseInt(row.get(5)) < 0) throw new AssertionError("NR mancanti");
                 for (int col = 0; col < row.size(); col++) {
-                    if (col != 3 && col != 4 && !row.get(col).equals(base.get(i).get(col))) {
+                    if (col != 3 && col != 4 && col != 5 && !row.get(col).equals(base.get(i).get(col))) {
                         throw new AssertionError("Cella non calcolata modificata");
                     }
                 }
             }
             if (!java.util.Arrays.equals(originalBytes, Files.readAllBytes(original))) throw new AssertionError("Base modificata");
             if (!actual.get(1).get(4).equals("1848")) throw new AssertionError("Config.java LOC Touched");
-            System.out.printf("OK: pipeline %d entry in %.3f s; LOC identici al riferimento, LOC Touched valorizzati, base invariata.%n",
+            System.out.printf("OK: pipeline %d entry in %.3f s; LOC identici al riferimento, LOC Touched e NR valorizzati, base invariata.%n",
                     actual.size() - 1, seconds);
         } finally {
             Files.deleteIfExists(output);
@@ -181,8 +183,34 @@ public class GitHistoryCheck {
             checkValue(reader, calculator, renamed, side, "Original.java", 2);
             int reference = reference(repo, root, merged, "Final.java");
             checkValue(reader, calculator, root, merged, "Final.java", reference);
+            checkNr(reader, null, root, "Original.java", 1);
+            checkNr(reader, root, reverted, "Original.java", 2);
+            checkNr(reader, reverted, moved, "Moved.java", 1);
+            checkNr(reader, null, moved, "Moved.java", 4);
+            checkNr(reader, moved, renamed, "Final.java", 1);
+            checkNr(reader, root, renamed, "Final.java", 4);
+            checkNr(reader, root, renamed, "Stable.java", 0);
+            checkNr(reader, renamed, side, "Original.java", 1);
+            checkNr(reader, null, merged, "Stable.java", 1);
+            checkNr(reader, renamed, merged, "Stable.java", 0);
             if (!reader.readChanges(root, root).isEmpty()) throw new AssertionError("Intervallo vuoto");
-            System.out.println("OK: intervalli, modifiche annullate, catene di rinomine, rami divergenti e merge.");
+            // Due storie di percorso convergono nello stesso commit: NR deve contarlo una volta.
+            Files.writeString(repo.resolve("One.java"), "unique-one-two\nshared-origin\n");
+            Files.writeString(repo.resolve("Two.java"), "unique-one-two\nshared-origin\n");
+            String origins = commit(repo);
+            git(repo, "checkout", "-b", "rename-left");
+            Files.move(repo.resolve("One.java"), repo.resolve("Joined.java"));
+            commit(repo);
+            git(repo, "checkout", "-b", "rename-right", origins);
+            Files.move(repo.resolve("Two.java"), repo.resolve("Joined.java"));
+            commit(repo);
+            git(repo, "merge", "--no-ff", "rename-left", "-m", "join paths");
+            String joined = git(repo, "rev-parse", "HEAD").strip();
+            reader.prepareHistory(List.of(origins, joined));
+            checkNr(reader, null, joined, "Joined.java", 3);
+            checkNr(reader, origins, joined, "Joined.java", 2);
+            checkValue(reader, calculator, null, joined, "Joined.java", 4);
+            System.out.println("OK: intervalli, rinomine, NR, rami divergenti, merge e unicita' per commit.");
         } finally {
             try (var paths = Files.walk(repo)) {
                 for (Path path : paths.sorted(Comparator.reverseOrder()).toList()) {
@@ -191,6 +219,12 @@ public class GitHistoryCheck {
                 }
             }
         }
+    }
+
+    private static void checkNr(GitHistoryReader reader, String previous, String current,
+                                String path, int expected) throws Exception {
+        int actual = new NrCalculator().calculate(reader.readChanges(previous, current).getOrDefault(path, List.of()));
+        if (actual != expected) throw new AssertionError("NR " + path + ": atteso " + expected + ", ottenuto " + actual);
     }
 
     private static void checkValue(GitHistoryReader reader, LocTouchedCalculator calculator,

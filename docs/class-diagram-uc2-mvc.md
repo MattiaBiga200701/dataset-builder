@@ -1,6 +1,6 @@
 # UC2 — Calcolo delle feature: class diagram MVC
 
-Il secondo caso d'uso è identificato con il comando «Crea Dataset.csv con le feature calcolate» di `DatasetCLI`. Il diagramma descrive il codice attuale, con LOC e LOC Touched implementate. Precondizioni: CSV di base già creato e lista dei `ReleaseDataset` disponibile, completa dall'inizio del dataset e ordinata per release.
+Il secondo caso d'uso è identificato con il comando «Crea Dataset.csv con le feature calcolate» di `DatasetCLI`. Il diagramma descrive il codice attuale, con LOC, LOC Touched e NR implementate. Precondizioni: CSV di base già creato e lista dei `ReleaseDataset` disponibile, completa dall'inizio del dataset e ordinata per release.
 
 I raggruppamenti rappresentano responsabilità architetturali, non nuovi package Java: `metrics` appartiene logicamente al Model, mentre i lettori Git si trovano nel package `utils`.
 
@@ -20,6 +20,7 @@ namespace Controller {
         -FeatureComputingDAO featureComputingDAO
         -LocCalculator locCalculator
         -LocTouchedCalculator locTouchedCalculator
+        -NrCalculator nrCalculator
         +createDatasetCsv(List~ReleaseDataset~ datasets) Path
     }
 }
@@ -27,6 +28,9 @@ namespace Controller {
 namespace Model_Calcolo {
     class LocCalculator {
         +calculate(String source) int
+    }
+    class NrCalculator {
+        +calculate(List~int[]~ revisions) int
     }
     class LocTouchedCalculator {
         +calculate(List~int[]~ revisions) int
@@ -45,8 +49,10 @@ namespace Model_Dati {
         -Release release
         -Integer loc
         -Integer locTouched
+        -Integer nr
         +setLOC(Integer loc) void
         +setLocTouched(Integer locTouched) void
+        +setNr(Integer nr) void
     }
     class Release {
         -Integer index
@@ -91,6 +97,7 @@ DatasetCLI ..> ReleaseDataset : riceve e passa al controller
 FeatureComputingController --> "1" FeatureComputingDAO : accesso ai dati
 FeatureComputingController --> "1" LocCalculator : delega LOC
 FeatureComputingController --> "1" LocTouchedCalculator : delega LOC Touched
+FeatureComputingController --> "1" NrCalculator : delega NR
 FeatureComputingController ..> ReleaseDataset : itera gli snapshot
 FeatureComputingController ..> DatasetEntry : aggiorna le metriche
 FeatureComputingController ..> Source : legge blob e testo
@@ -111,7 +118,7 @@ GitSourceReader ..> Source : crea
 | View | `DatasetCLI` | Mostra il menu, legge la scelta, invoca il controller e mostra il percorso prodotto o l'errore. |
 | Controller | `FeatureComputingController` | Coordina copia/lettura del CSV, preparazione della storia, iterazione delle release e delle entry, calcolo delle metriche e salvataggio. Gestisce anche la cache LOC per blob. |
 | Model: dati | `ReleaseDataset`, `DatasetEntry`, `Release` | Rappresentano snapshot, righe del dataset e release. `DatasetEntry` conserva i risultati delle metriche. |
-| Model: calcolo | `LocCalculator`, `LocTouchedCalculator` | Implementano gli algoritmi senza dipendere da View o Controller. LOC analizza il testo; LOC Touched somma aggiunte e cancellazioni. |
+| Model: calcolo | `LocCalculator`, `LocTouchedCalculator`, `NrCalculator` | Implementano gli algoritmi senza dipendere da View o Controller. LOC analizza il testo; LOC Touched somma aggiunte e cancellazioni; NR conta le revisioni distinte, incluse quelle a zero righe. |
 | Model: accesso ai dati | `FeatureComputingDAO`, `GitSourceReader`, `GitHistoryReader`, `GitSourceReader.Source` | Gestiscono CSV, sorgenti e cronologia Git. Il DAO mantiene in memoria righe e indici del CSV; i lettori recuperano i dati Git. |
 
 Il punto centrale dell'MVC è la separazione delle responsabilità: **la View interagisce con l'utente, il Controller coordina il caso d'uso e il Model gestisce dati, algoritmi e accesso alle risorse**. Il Model non conosce né CLI né controller. La View conosce `ReleaseDataset`, perché passa al controller i risultati ottenuti nel primo caso d'uso; questo non introduce accesso diretto ai DAO.
@@ -123,8 +130,8 @@ Non è presente un meccanismo Observer: l'interazione è sincrona. `createDatase
 1. La CLI riceve la richiesta e passa i dataset al `FeatureComputingController`.
 2. Il controller chiede al DAO di copiare `output/dataset_base.csv` in `output/Dataset.csv`, leggere la copia e preparare la cronologia Git.
 3. Per ogni release recupera le modifiche rispetto alla precedente; per la prima considera la storia raggiungibile dal suo commit.
-4. Per ogni entry legge il sorgente, delega il calcolo ai due calcolatori e aggiorna l'entità tramite i setter. Il calcolo LOC è riutilizzato per blob già incontrati.
-5. Il DAO trasferisce LOC e LOC Touched nelle celle della riga identificata da progetto, percorso della classe e release.
+4. Per ogni entry legge il sorgente, delega il calcolo ai tre calcolatori e aggiorna l'entità tramite i setter. Il calcolo LOC è riutilizzato per blob già incontrati.
+5. Il DAO trasferisce LOC, LOC Touched e NR nelle celle della riga identificata da progetto, percorso della classe e release.
 6. Il DAO scrive il CSV; il controller chiude le risorse e restituisce il percorso alla CLI.
 
 ## Convenzioni e dettagli omessi
@@ -133,7 +140,7 @@ Non è presente un meccanismo Observer: l'interazione è sincrona. `createDatase
 - Le molteplicità `0..1` delle release riflettono campi nullable nel codice; nel flusso ordinario i riferimenti sono valorizzati. `sourceReader` è creato alla prima lettura e azzerato alla chiusura.
 - Non si introduce composizione per le entità: i setter non impongono proprietà esclusiva.
 - `projectName` è statico, come nell'implementazione attuale.
-- `Source` è il record annidato `GitSourceReader.Source`. Il tipo abbreviato `Map` nei metodi della cronologia è `Map<String, List<int[]>>`: ogni coppia contiene aggiunte e cancellazioni.
+- `Source` è il record annidato `GitSourceReader.Source`. Il tipo abbreviato `Map` nei metodi della cronologia è `Map<String, List<int[]>>`: ogni coppia contiene aggiunte e cancellazioni di un commit distinto nella storia della classe, anche `[0, 0]`. Il reader aggrega eventuali percorsi distinti dello stesso commit; NR conta gli elementi della lista.
 - Per leggibilità sono omessi costruttori, getter/setter non essenziali, altre metriche dell'entry, indici interni del DAO, `EntryKey`, helper `CsvFormat`, enum `Feature` e realizzazione dell'interfaccia `AutoCloseable` da parte del DAO e di `GitSourceReader`.
 - Il campo `releaseDataset` del DAO e i suoi accessori esistono ma non partecipano a questo flusso, quindi sono omessi.
 - `BuildDatasetController` appartiene al primo caso d'uso, che fornisce le precondizioni del secondo.
