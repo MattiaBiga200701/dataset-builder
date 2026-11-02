@@ -1,5 +1,7 @@
 package it.uniroma2.isw2.model.dao;
 
+import it.uniroma2.isw2.utils.GitHistoryReader.Revision;
+
 import it.uniroma2.isw2.model.entity.ReleaseDataset;
 import it.uniroma2.isw2.model.entity.DatasetEntry;
 import it.uniroma2.isw2.utils.Feature;
@@ -8,6 +10,16 @@ import it.uniroma2.isw2.utils.CsvFormat;
 import it.uniroma2.isw2.utils.GitSourceReader;
 import it.uniroma2.isw2.utils.GitHistoryReader;
 import java.io.IOException;
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import java.net.URL;
+import java.nio.charset.Charset;
+import java.util.ArrayList;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 import java.nio.file.Files;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
@@ -67,7 +79,7 @@ public class FeatureComputingDAO implements AutoCloseable {
             }
         }
         for (String name : List.of("Project Name", "Class Name", "Release ID",
-                Feature.LOC.getColumnName(), Feature.LOC_TOUCHED.getColumnName(), Feature.NR.getColumnName())) {
+                Feature.LOC.getColumnName(), Feature.LOC_TOUCHED.getColumnName(), Feature.NR.getColumnName(), Feature.NFIX.getColumnName(), Feature.NAUTH.getColumnName())) {
             if (!columns.containsKey(name)) throw new IOException("Colonna mancante: " + name);
         }
         for (List<String> row : rows.subList(1, rows.size())) {
@@ -96,9 +108,11 @@ public class FeatureComputingDAO implements AutoCloseable {
         row.set(columns.get(Feature.LOC_TOUCHED.getColumnName()),
                 Objects.requireNonNull(entry.getLocTouched(), "LOC Touched").toString());
         row.set(columns.get(Feature.NR.getColumnName()), Objects.requireNonNull(entry.getNr(), "NR").toString());
+        row.set(columns.get(Feature.NFIX.getColumnName()), Objects.requireNonNull(entry.getNfix(), "Nfix").toString());
+        row.set(columns.get(Feature.NAUTH.getColumnName()), Objects.requireNonNull(entry.getNauth(), "Nauth").toString());
     }
 
-    public Map<String, List<int[]>> getChanges(String previousCommit, String currentCommit) throws IOException {
+    public Map<String, List<Revision>> getChanges(String previousCommit, String currentCommit) throws IOException {
         return historyReader.readChanges(previousCommit, currentCommit);
     }
 
@@ -112,7 +126,7 @@ public class FeatureComputingDAO implements AutoCloseable {
         if (updated.size() != entries.size()) {
             throw new IOException("Il CSV di base contiene entry senza feature calcolate");
         }
-        
+
         try (BufferedWriter writer = Files.newBufferedWriter(outputPath, StandardCharsets.UTF_8)) {
             for (List<String> row : rows) {
                 for (int i = 0; i < row.size(); i++) {
@@ -148,4 +162,64 @@ public class FeatureComputingDAO implements AutoCloseable {
     public void setReleaseDataset(ReleaseDataset releaseDataset) {
         this.releaseDataset = releaseDataset;
     }
+    // Script originale: Using Jira and Git/GetTicketsID/GetTicketID/src/main/java/RetrieveTicketsID.java.
+    // Query, campi e paginazione invariati; progetto parametrico e lista al posto della stampa.
+   private static String readAll(Reader rd) throws IOException {
+          StringBuilder sb = new StringBuilder();
+          int cp;
+          while ((cp = rd.read()) != -1) {
+             sb.append((char) cp);
+          }
+          return sb.toString();
+       }
+
+   public static JSONArray readJsonArrayFromUrl(String url) throws IOException, JSONException {
+      InputStream is = new URL(url).openStream();
+      try {
+         BufferedReader rd = new BufferedReader(new InputStreamReader(is, Charset.forName("UTF-8")));
+         String jsonText = readAll(rd);
+         JSONArray json = new JSONArray(jsonText);
+         return json;
+       } finally {
+         is.close();
+       }
+   }
+
+   protected JSONObject readJsonFromUrl(String url) throws IOException, JSONException {
+      InputStream is = new URL(url).openStream();
+      try {
+         BufferedReader rd = new BufferedReader(new InputStreamReader(is, Charset.forName("UTF-8")));
+         String jsonText = readAll(rd);
+         JSONObject json = new JSONObject(jsonText);
+         return json;
+       } finally {
+         is.close();
+       }
+   }
+
+
+
+       public List<String> getTicketIDs(String projName) throws IOException, JSONException {
+
+           List<String> ticketIDs = new ArrayList<>();
+       Integer j = 0, i = 0, total = 1;
+      //Get JSON API for closed bugs w/ AV in the project
+      do {
+         //Only gets a max of 1000 at a time, so must do this multiple times if bugs >1000
+         j = i + 1000;
+         String url = "https://issues.apache.org/jira/rest/api/2/search?jql=project=%22"
+                + projName + "%22AND%22issueType%22=%22Bug%22AND(%22status%22=%22closed%22OR"
+                + "%22status%22=%22resolved%22)AND%22resolution%22=%22fixed%22&fields=key,resolutiondate,versions,created&startAt="
+                + i.toString() + "&maxResults=" + j.toString();
+         JSONObject json = readJsonFromUrl(url);
+         JSONArray issues = json.getJSONArray("issues");
+         total = json.getInt("total");
+         for (; i < total && i < j; i++) {
+            //Iterate through each bug
+            String key = issues.getJSONObject(i%1000).get("key").toString();
+            ticketIDs.add(key);
+         }
+      } while (i < total);
+      return ticketIDs;
+   }
 }

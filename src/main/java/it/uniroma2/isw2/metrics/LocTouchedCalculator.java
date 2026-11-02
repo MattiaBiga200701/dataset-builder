@@ -1,16 +1,15 @@
 package it.uniroma2.isw2.metrics;
 
+import it.uniroma2.isw2.utils.GitHistoryReader.Revision;
+
 import java.util.List;
 
-/** Ogni coppia contiene [righe aggiunte, righe cancellate] di una revisione. */
+/** Somma le righe aggiunte e cancellate delle revisioni della classe. */
 public final class LocTouchedCalculator {
-    public int calculate(List<int[]> revisions) {
+    public int calculate(List<Revision> revisions) {
         int touched = 0;
-        for (int[] revision : revisions) {
-            if (revision.length != 2 || revision[0] < 0 || revision[1] < 0) {
-                throw new IllegalArgumentException("Attesa una coppia di conteggi non negativi");
-            }
-            touched = Math.addExact(touched, Math.addExact(revision[0], revision[1]));
+        for (Revision revision : revisions) {
+            touched = Math.addExact(touched, Math.addExact(revision.added(), revision.deleted()));
         }
         return touched;
     }

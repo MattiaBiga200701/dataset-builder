@@ -1,5 +1,7 @@
 package it.uniroma2.isw2;
 
+import it.uniroma2.isw2.utils.GitHistoryReader.Revision;
+
 import it.uniroma2.isw2.metrics.LocTouchedCalculator;
 import it.uniroma2.isw2.metrics.NrCalculator;
 import it.uniroma2.isw2.utils.CsvFormat;
@@ -17,6 +19,9 @@ import it.uniroma2.isw2.model.entity.DatasetEntry;
 import it.uniroma2.isw2.model.entity.Release;
 import it.uniroma2.isw2.model.entity.ReleaseDataset;
 import java.io.IOException;
+import it.uniroma2.isw2.metrics.NfixCalculator;
+import it.uniroma2.isw2.metrics.NauthCalculator;
+import java.util.Set;
 
 /** Verifica sul clone locale; non modifica i CSV di output. */
 public class GitHistoryCheck {
@@ -31,15 +36,15 @@ public class GitHistoryCheck {
         // Mapping dello snapshot corrente: il dataset base accorpa la data di 0.10.0 e 0.9.6.
         List<String> commits = new ArrayList<>();
         for (int i = 1; i < mapping.size(); i++) if (i != 7) commits.add(mapping.get(i).get(5));
-        if (args.length > 0 && args[0].equals("--pipeline")) {
-            checkPipeline(repo, base, commits);
+        if (args.length > 0 && (args[0].equals("--pipeline") || args[0].equals("--pipeline-live"))) {
+            checkPipeline(repo, base, commits, args[0].equals("--pipeline-live"));
             return;
         }
         GitHistoryReader reader = new GitHistoryReader(repo);
         LocTouchedCalculator calculator = new LocTouchedCalculator();
         long start = System.nanoTime();
         reader.prepareHistory(commits);
-        List<Map<String, List<int[]>>> results = new ArrayList<>();
+        List<Map<String, List<Revision>>> results = new ArrayList<>();
         String previous = null;
         for (String commit : commits) {
             results.add(reader.readChanges(previous, commit));
@@ -87,7 +92,7 @@ public class GitHistoryCheck {
         return count;
     }
 
-    private static void checkPipeline(Path repo, List<List<String>> base, List<String> commits) throws Exception {
+    private static void checkPipeline(Path repo, List<List<String>> base, List<String> commits, boolean live) throws Exception {
         Path output = Files.createTempFile("dataset-pipeline-check-", ".csv");
         Path original = Path.of("output", "dataset_base.csv");
         byte[] originalBytes = Files.readAllBytes(original);
@@ -115,6 +120,9 @@ public class GitHistoryCheck {
             dataset.getEntries().add(entry);
         }
         FeatureComputingDAO dao = new FeatureComputingDAO(repo) {
+            @Override public List<String> getTicketIDs(String project) throws IOException {
+                return live ? super.getTicketIDs(project) : List.of();
+            }
             @Override public void readBaseCsv(Path input, Path target) throws IOException {
                 super.readBaseCsv(original, output);
             }
@@ -132,16 +140,24 @@ public class GitHistoryCheck {
                 if (!row.get(3).equals(expectedLoc.get(key))) throw new AssertionError("LOC cambiati: " + key);
                 if (row.get(4).isBlank() || Integer.parseInt(row.get(4)) < 0) throw new AssertionError("LOC Touched mancanti");
                 if (row.get(5).isBlank() || Integer.parseInt(row.get(5)) < 0) throw new AssertionError("NR mancanti");
+                int nauth = Integer.parseInt(row.get(7));
+                int nr = Integer.parseInt(row.get(5));
+                if (nauth < 0 || nauth > nr || (nr > 0 && nauth == 0)) throw new AssertionError("Nauth fuori intervallo");
+                int nfix = Integer.parseInt(row.get(6));
+                if (nfix < 0 || nfix > Integer.parseInt(row.get(5))) throw new AssertionError("Nfix fuori intervallo");
+                if (!live && nfix != 0) throw new AssertionError("Nfix con ticket vuoti");
                 for (int col = 0; col < row.size(); col++) {
-                    if (col != 3 && col != 4 && col != 5 && !row.get(col).equals(base.get(i).get(col))) {
+                    if (col != 3 && col != 4 && col != 5 && col != 6 && col != 7 && !row.get(col).equals(base.get(i).get(col))) {
                         throw new AssertionError("Cella non calcolata modificata");
                     }
                 }
             }
             if (!java.util.Arrays.equals(originalBytes, Files.readAllBytes(original))) throw new AssertionError("Base modificata");
             if (!actual.get(1).get(4).equals("1848")) throw new AssertionError("Config.java LOC Touched");
-            System.out.printf("OK: pipeline %d entry in %.3f s; LOC identici al riferimento, LOC Touched e NR valorizzati, base invariata.%n",
+            System.out.printf("OK: pipeline %d entry in %.3f s; LOC identici al riferimento, LOC Touched, NR e Nfix valorizzati, base invariata.%n",
                     actual.size() - 1, seconds);
+            System.out.println("Righe con Nfix > 0: " + actual.subList(1, actual.size()).stream()
+                    .filter(row -> Integer.parseInt(row.get(6)) > 0).count());
         } finally {
             Files.deleteIfExists(output);
         }
@@ -158,9 +174,9 @@ public class GitHistoryCheck {
             Files.writeString(repo.resolve("Original.java"), original.replace("beta", "changed"));
             commit(repo);
             Files.writeString(repo.resolve("Original.java"), original);
-            String reverted = commit(repo);
+            String reverted = commit(repo, "Fix\n\n[STORM-12] STORM-123", "Second <second@example.test>");
             Files.move(repo.resolve("Original.java"), repo.resolve("Moved.java"));
-            String moved = commit(repo);
+            String moved = commit(repo, "STORM-12 rename");
             Files.move(repo.resolve("Moved.java"), repo.resolve("Final.java"));
             Files.writeString(repo.resolve("Final.java"), original + "extra\n");
             String renamed = commit(repo);
@@ -168,7 +184,7 @@ public class GitHistoryCheck {
             Files.writeString(repo.resolve("Original.java"), original.replace("gamma", "side"));
             String side = commit(repo);
             git(repo, "checkout", "main");
-            git(repo, "merge", "--no-ff", "side", "-m", "merge");
+            git(repo, "merge", "--no-ff", "side", "-m", "STORM-12 merge");
             String merged = git(repo, "rev-parse", "HEAD").strip();
             GitHistoryReader reader = new GitHistoryReader(repo);
             reader.prepareHistory(List.of(root, reverted, moved, renamed, side, merged));
@@ -183,6 +199,12 @@ public class GitHistoryCheck {
             checkValue(reader, calculator, renamed, side, "Original.java", 2);
             int reference = reference(repo, root, merged, "Final.java");
             checkValue(reader, calculator, root, merged, "Final.java", reference);
+            checkNauth(reader, null, root, "Original.java", 1);
+            checkNauth(reader, root, reverted, "Original.java", 2);
+            checkNauth(reader, reverted, moved, "Moved.java", 1);
+            checkNauth(reader, null, moved, "Moved.java", 2);
+            checkNauth(reader, root, renamed, "Stable.java", 0);
+            checkNauth(reader, renamed, merged, "Stable.java", 0);
             checkNr(reader, null, root, "Original.java", 1);
             checkNr(reader, root, reverted, "Original.java", 2);
             checkNr(reader, reverted, moved, "Moved.java", 1);
@@ -193,11 +215,17 @@ public class GitHistoryCheck {
             checkNr(reader, renamed, side, "Original.java", 1);
             checkNr(reader, null, merged, "Stable.java", 1);
             checkNr(reader, renamed, merged, "Stable.java", 0);
+            checkNfix(reader, null, root, "Original.java", 0);
+            checkNfix(reader, root, reverted, "Original.java", 1);
+            checkNfix(reader, reverted, moved, "Moved.java", 1);
+            checkNfix(reader, moved, renamed, "Final.java", 0);
+            checkNfix(reader, null, moved, "Moved.java", 2);
+            checkNfix(reader, renamed, merged, "Stable.java", 0);
             if (!reader.readChanges(root, root).isEmpty()) throw new AssertionError("Intervallo vuoto");
             // Due storie di percorso convergono nello stesso commit: NR deve contarlo una volta.
             Files.writeString(repo.resolve("One.java"), "unique-one-two\nshared-origin\n");
             Files.writeString(repo.resolve("Two.java"), "unique-one-two\nshared-origin\n");
-            String origins = commit(repo);
+            String origins = commit(repo, "STORM-12");
             git(repo, "checkout", "-b", "rename-left");
             Files.move(repo.resolve("One.java"), repo.resolve("Joined.java"));
             commit(repo);
@@ -210,7 +238,8 @@ public class GitHistoryCheck {
             checkNr(reader, null, joined, "Joined.java", 3);
             checkNr(reader, origins, joined, "Joined.java", 2);
             checkValue(reader, calculator, null, joined, "Joined.java", 4);
-            System.out.println("OK: intervalli, rinomine, NR, rami divergenti, merge e unicita' per commit.");
+            checkNfix(reader, null, joined, "Joined.java", 1);
+            System.out.println("OK: intervalli, rinomine, NR, Nfix, rami divergenti, merge e unicita' per commit.");
         } finally {
             try (var paths = Files.walk(repo)) {
                 for (Path path : paths.sorted(Comparator.reverseOrder()).toList()) {
@@ -219,6 +248,24 @@ public class GitHistoryCheck {
                 }
             }
         }
+    }
+
+    private static void checkNauth(GitHistoryReader reader, String previous, String current,
+                                   String path, int expected) throws Exception {
+        var emails = reader.readChanges(previous, current).getOrDefault(path, List.of())
+                .stream().map(Revision::authorEmail).toList();
+        int actual = new NauthCalculator().calculate(emails);
+        if (actual != expected) throw new AssertionError("Nauth " + path + ": " + actual + " != " + expected);
+    }
+
+    private static void checkNfix(GitHistoryReader reader, String previous, String current,
+                                  String path, int expected) throws Exception {
+        Map<String, String> messagesByCommit = new java.util.HashMap<>();
+        for (Revision revision : reader.readChanges(previous, current).getOrDefault(path, List.of())) {
+            messagesByCommit.put(revision.commitHash(), revision.message());
+        }
+        int actual = new NfixCalculator().calculate(messagesByCommit, Set.of("STORM-12", "STORM-123"));
+        if (actual != expected) throw new AssertionError("Nfix " + path + ": " + actual + " != " + expected);
     }
 
     private static void checkNr(GitHistoryReader reader, String previous, String current,
@@ -234,8 +281,16 @@ public class GitHistoryCheck {
     }
 
     private static String commit(Path repo) throws Exception {
+        return commit(repo, "fixture");
+    }
+
+    private static String commit(Path repo, String message) throws Exception {
+        return commit(repo, message, "Fixture <fixture@example.test>");
+    }
+
+    private static String commit(Path repo, String message, String author) throws Exception {
         git(repo, "add", ".");
-        git(repo, "commit", "-m", "fixture");
+        git(repo, "commit", "--author", author, "-m", message);
         return git(repo, "rev-parse", "HEAD").strip();
     }
 

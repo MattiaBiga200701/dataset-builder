@@ -1,5 +1,7 @@
 package it.uniroma2.isw2.utils;
 
+import java.util.Objects;
+
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
@@ -13,8 +15,20 @@ import java.util.Set;
 
 /** Indicizza una volta Git; ricostruisce intervalli e rinominazioni in memoria. */
 public final class GitHistoryReader {
+    /** Dati tecnici di una revisione Git, analoghi a GitSourceReader.Source. */
+    public record Revision(String commitHash, String message, int added, int deleted, String authorEmail) {
+        public Revision {
+            Objects.requireNonNull(commitHash, "commitHash");
+            Objects.requireNonNull(message, "message");
+            Objects.requireNonNull(authorEmail, "authorEmail");
+            if (added < 0 || deleted < 0) throw new IllegalArgumentException("Conteggi negativi");
+        }
+    }
+
     private final Path repositoryPath;
     private final List<String> commitOrder = new ArrayList<>();
+    private final Map<String, String> messages = new HashMap<>();
+    private final Map<String, String> authorEmails = new HashMap<>();
     private final Map<String, List<String>> parents = new HashMap<>();
     private final Map<String, Map<String, int[]>> revisions = new HashMap<>();
     private final Map<String, Map<String, String>> renames = new HashMap<>();
@@ -32,7 +46,7 @@ public final class GitHistoryReader {
         if (commits.isEmpty()) return;
         List<String> arguments = new ArrayList<>(List.of("-c", "diff.algorithm=myers",
                 "-c", "diff.renameLimit=0", "log", "--topo-order", "--full-history",
-                "--format=%x00COMMIT%x00%H%x00%P%x00", "--raw", "--numstat", "-z",
+                "--format=%x00COMMIT%x00%H%x00%P%x00%B%x00%ae%x00", "--raw", "--numstat", "-z",
                 "--no-abbrev", "--root", "--diff-merges=off", "--find-renames=50%",
                 "--find-copies=50%", "--find-copies-harder",
                 "--no-ext-diff", "--no-textconv", "--end-of-options"));
@@ -45,7 +59,7 @@ public final class GitHistoryReader {
         }
     }
 
-    public Map<String, List<int[]>> readChanges(String previousCommit, String currentCommit) throws IOException {
+    public Map<String, List<Revision>> readChanges(String previousCommit, String currentCommit) throws IOException {
         validateHash(currentCommit);
         if (previousCommit != null) validateHash(previousCommit);
         if (!parents.containsKey(currentCommit)
@@ -54,22 +68,22 @@ public final class GitHistoryReader {
         }
         Set<String> interval = new HashSet<>(reachableFrom(currentCommit));
         if (previousCommit != null) interval.removeAll(reachableFrom(previousCommit));
-        Map<String, List<int[]>> result = new HashMap<>();
+        Map<String, List<Revision>> result = new HashMap<>();
         if (interval.isEmpty()) return result;
         String tree = runGit(List.of("ls-tree", "-r", "-z", "--name-only", currentCommit));
         for (String path : tree.split("\u0000")) {
             if (!path.endsWith(".java")) continue;
-            List<int[]> changes = followChanges(currentCommit, path, interval);
+            List<Revision> changes = followChanges(currentCommit, path, interval);
             if (!changes.isEmpty()) result.put(path, changes);
         }
         return result;
     }
 
     /** La rinomina su un ramo non modifica i percorsi attraversati sugli altri. */
-    private List<int[]> followChanges(String start, String path, Set<String> interval) {
+    private List<Revision> followChanges(String start, String path, Set<String> interval) {
         Map<String, Set<String>> pending = new HashMap<>();
         pending.computeIfAbsent(start, key -> new HashSet<>()).add(path);
-        List<int[]> result = new ArrayList<>();
+        List<Revision> result = new ArrayList<>();
         for (String commit : commitOrder) {
             Set<String> paths = pending.remove(commit);
             if (paths == null || !interval.contains(commit)) continue;
@@ -96,7 +110,7 @@ public final class GitHistoryReader {
                     }
                 }
             }
-            if (commitChange != null) result.add(commitChange);
+            if (commitChange != null) result.add(new Revision(commit, messages.get(commit), commitChange[0], commitChange[1], authorEmails.get(commit)));
         }
         return result;
     }
@@ -121,10 +135,12 @@ public final class GitHistoryReader {
             String record = records[i].replaceFirst("^[\\r\\n]+", "");
             if (record.isEmpty()) continue;
             if (record.equals("COMMIT")) {
-                if (i + 2 >= records.length) throw new IOException("Intestazione commit incompleta");
+                if (i + 4 >= records.length) throw new IOException("Intestazione commit incompleta");
                 commit = records[++i];
                 validateHash(commit);
                 String parentText = records[++i];
+                messages.put(commit, records[++i]);
+                authorEmails.put(commit, records[++i]);
                 commitOrder.add(commit);
                 parents.put(commit, parentText.isEmpty() ? List.of() : List.of(parentText.split(" ")));
             } else if (record.startsWith(":")) {
@@ -167,6 +183,8 @@ public final class GitHistoryReader {
     public void clear() {
         commitOrder.clear();
         parents.clear();
+        messages.clear();
+        authorEmails.clear();
         revisions.clear();
         renames.clear();
         additions.clear();
