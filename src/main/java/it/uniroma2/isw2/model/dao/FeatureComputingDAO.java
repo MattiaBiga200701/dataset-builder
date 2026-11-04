@@ -79,7 +79,7 @@ public class FeatureComputingDAO implements AutoCloseable {
             }
         }
         for (String name : List.of("Project Name", "Class Name", "Release ID",
-                Feature.LOC.getColumnName(), Feature.LOC_TOUCHED.getColumnName(), Feature.NR.getColumnName(), Feature.NFIX.getColumnName(), Feature.NAUTH.getColumnName())) {
+                Feature.LOC.getColumnName(), Feature.LOC_TOUCHED.getColumnName(), Feature.LOC_ADDED.getColumnName(), Feature.MAX_LOC_ADDED.getColumnName(), Feature.NR.getColumnName(), Feature.NFIX.getColumnName(), Feature.NAUTH.getColumnName())) {
             if (!columns.containsKey(name)) throw new IOException("Colonna mancante: " + name);
         }
         for (List<String> row : rows.subList(1, rows.size())) {
@@ -107,6 +107,10 @@ public class FeatureComputingDAO implements AutoCloseable {
         row.set(columns.get(Feature.LOC.getColumnName()), Objects.requireNonNull(entry.getLOC(), "LOC").toString());
         row.set(columns.get(Feature.LOC_TOUCHED.getColumnName()),
                 Objects.requireNonNull(entry.getLocTouched(), "LOC Touched").toString());
+        row.set(columns.get(Feature.LOC_ADDED.getColumnName()),
+                Objects.requireNonNull(entry.getLocAdded(), "LOC Added").toString());
+        row.set(columns.get(Feature.MAX_LOC_ADDED.getColumnName()),
+                Objects.requireNonNull(entry.getMaxLocAdded(), "Max LOC Added").toString());
         row.set(columns.get(Feature.NR.getColumnName()), Objects.requireNonNull(entry.getNr(), "NR").toString());
         row.set(columns.get(Feature.NFIX.getColumnName()), Objects.requireNonNull(entry.getNfix(), "Nfix").toString());
         row.set(columns.get(Feature.NAUTH.getColumnName()), Objects.requireNonNull(entry.getNauth(), "Nauth").toString());

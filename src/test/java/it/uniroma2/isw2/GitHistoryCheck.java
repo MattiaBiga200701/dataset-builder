@@ -140,6 +140,12 @@ public class GitHistoryCheck {
                 if (!row.get(3).equals(expectedLoc.get(key))) throw new AssertionError("LOC cambiati: " + key);
                 if (row.get(4).isBlank() || Integer.parseInt(row.get(4)) < 0) throw new AssertionError("LOC Touched mancanti");
                 if (row.get(5).isBlank() || Integer.parseInt(row.get(5)) < 0) throw new AssertionError("NR mancanti");
+                int added = Integer.parseInt(row.get(8));
+                if (added < 0 || added > Integer.parseInt(row.get(4))) throw new AssertionError("LOC Added fuori intervallo");
+                int maxAdded = Integer.parseInt(row.get(9));
+                if (maxAdded < 0 || maxAdded > added || (added > 0 && maxAdded == 0)) {
+                    throw new AssertionError("Max LOC Added fuori intervallo");
+                }
                 int nauth = Integer.parseInt(row.get(7));
                 int nr = Integer.parseInt(row.get(5));
                 if (nauth < 0 || nauth > nr || (nr > 0 && nauth == 0)) throw new AssertionError("Nauth fuori intervallo");
@@ -147,14 +153,14 @@ public class GitHistoryCheck {
                 if (nfix < 0 || nfix > Integer.parseInt(row.get(5))) throw new AssertionError("Nfix fuori intervallo");
                 if (!live && nfix != 0) throw new AssertionError("Nfix con ticket vuoti");
                 for (int col = 0; col < row.size(); col++) {
-                    if (col != 3 && col != 4 && col != 5 && col != 6 && col != 7 && !row.get(col).equals(base.get(i).get(col))) {
+                    if (col != 3 && col != 4 && col != 5 && col != 6 && col != 7 && col != 8 && col != 9 && !row.get(col).equals(base.get(i).get(col))) {
                         throw new AssertionError("Cella non calcolata modificata");
                     }
                 }
             }
             if (!java.util.Arrays.equals(originalBytes, Files.readAllBytes(original))) throw new AssertionError("Base modificata");
             if (!actual.get(1).get(4).equals("1848")) throw new AssertionError("Config.java LOC Touched");
-            System.out.printf("OK: pipeline %d entry in %.3f s; LOC identici al riferimento, LOC Touched, NR e Nfix valorizzati, base invariata.%n",
+            System.out.printf("OK: pipeline %d entry in %.3f s; LOC identici al riferimento, LOC Touched, LOC Added, Max LOC Added, NR, Nfix e Nauth valorizzati, base invariata.%n",
                     actual.size() - 1, seconds);
             System.out.println("Righe con Nfix > 0: " + actual.subList(1, actual.size()).stream()
                     .filter(row -> Integer.parseInt(row.get(6)) > 0).count());

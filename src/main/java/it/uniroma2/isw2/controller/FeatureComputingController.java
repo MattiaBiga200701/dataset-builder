@@ -94,7 +94,10 @@ public class FeatureComputingController {
     }
 
     private void locTouchedComputing(DatasetEntry entry, Map<String, List<Revision>> changesByFile) {
-        entry.setLocTouched(locTouchedCalculator.calculate(
-                changesByFile.getOrDefault(entry.getClassName(), List.of())));
+        LocTouchedCalculator.LineCounts lines = locTouchedCalculator.calculateLines(
+                changesByFile.getOrDefault(entry.getClassName(), List.of()));
+        entry.setLocAdded(lines.added());
+        entry.setMaxLocAdded(lines.maxAdded());
+        entry.setLocTouched(lines.touched());
     }
 }

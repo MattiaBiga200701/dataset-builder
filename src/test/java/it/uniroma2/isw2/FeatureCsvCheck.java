@@ -20,9 +20,9 @@ public class FeatureCsvCheck {
         Path dir = Files.createTempDirectory("feature-csv-check-");
         Path base = dir.resolve("base.csv");
         Path output = dir.resolve("Dataset.csv");
-        String original = "NR,Class Name,LOC,Release ID,Project Name,Extra,LOC Touched,Nfix,Nauth\r\n"
-                + "7,\"A,\"\"test\"\".java\",,2,STORM,\"keep\r\nthis\",,,\r\n"
-                + "8,\"A,\"\"test\"\".java\",,1,STORM,preserved,,,\r\n";
+        String original = "NR,Class Name,LOC,Release ID,Project Name,Extra,LOC Touched,Nfix,Nauth,LOC Added,Max LOC Added\r\n"
+                + "7,\"A,\"\"test\"\".java\",,2,STORM,\"keep\r\nthis\",,,,,\r\n"
+                + "8,\"A,\"\"test\"\".java\",,1,STORM,preserved,,,,,\r\n";
         FeatureComputingDAO dao = new FeatureComputingDAO() {
                 @Override public List<String> getTicketIDs(String project) {
                     if (!"STORM".equals(project)) throw new AssertionError(project);
@@ -64,14 +64,18 @@ public class FeatureCsvCheck {
             List<ReleaseDataset> datasets = List.of(dataset(1), dataset(2));
             FeatureComputingController controller = new FeatureComputingController(dao);
             controller.createDatasetCsv(datasets);
-            String expected = "\"NR\",\"Class Name\",\"LOC\",\"Release ID\",\"Project Name\",\"Extra\",\"LOC Touched\",\"Nfix\",\"Nauth\"\r\n"
-                    + "\"0\",\"A,\"\"test\"\".java\",\"3\",\"2\",\"STORM\",\"keep\r\nthis\",\"0\",\"0\",\"0\"\r\n"
-                    + "\"3\",\"A,\"\"test\"\".java\",\"1\",\"1\",\"STORM\",\"preserved\",\"6\",\"2\",\"2\"\r\n";
+            String expected = "\"NR\",\"Class Name\",\"LOC\",\"Release ID\",\"Project Name\",\"Extra\",\"LOC Touched\",\"Nfix\",\"Nauth\",\"LOC Added\",\"Max LOC Added\"\r\n"
+                    + "\"0\",\"A,\"\"test\"\".java\",\"3\",\"2\",\"STORM\",\"keep\r\nthis\",\"0\",\"0\",\"0\",\"0\",\"0\"\r\n"
+                    + "\"3\",\"A,\"\"test\"\".java\",\"1\",\"1\",\"STORM\",\"preserved\",\"6\",\"2\",\"2\",\"5\",\"3\"\r\n";
             if (!Files.readString(output).equals(expected)) throw new AssertionError(Files.readString(output));
             if (!Files.readString(base).equals(original)) throw new AssertionError("Base modificata");
             expectIOException(() -> controller.createDatasetCsv(List.of(dataset(1))));
             expectIOException(() -> controller.createDatasetCsv(List.of(dataset(1), dataset(3))));
-            Files.writeString(base, original + "8,\"A,\"\"test\"\".java\",,1,STORM,duplicate,,,\r\n");
+            Files.writeString(base, original + "8,\"A,\"\"test\"\".java\",,1,STORM,duplicate,,,,,\r\n");
+            expectIOException(() -> dao.readBaseCsv(base, output));
+            Files.writeString(base, original.replace(",LOC Added,", ",Missing LOC Added,"));
+            expectIOException(() -> dao.readBaseCsv(base, output));
+            Files.writeString(base, original.replace("Max LOC Added", "Missing Max LOC Added"));
             expectIOException(() -> dao.readBaseCsv(base, output));
             Files.writeString(base, original.replace("Nauth", "Missing Nauth"));
             expectIOException(() -> dao.readBaseCsv(base, output));
@@ -81,7 +85,7 @@ public class FeatureCsvCheck {
             expectIOException(() -> dao.readBaseCsv(base, output));
             Files.writeString(base, "Project Name,Class Name,Release ID\n");
             expectIOException(() -> dao.readBaseCsv(base, output));
-            System.out.println("OK: LOC, LOC Touched, NR e Nfix per release, associazione per chiave, ordine, celle preservate, escaping e CSV incoerenti.");
+            System.out.println("OK: LOC, LOC Touched, LOC Added, Max LOC Added, NR, Nfix e Nauth per release, associazione per chiave, ordine, celle preservate, escaping e CSV incoerenti.");
         } finally {
             Files.deleteIfExists(base);
             Files.deleteIfExists(output);

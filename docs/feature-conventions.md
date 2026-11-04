@@ -23,6 +23,20 @@ Numero di commit distinti che revisionano la classe nell'intervallo della releas
 
 Somma delle righe fisiche aggiunte e cancellate in tutte le revisioni considerate, secondo `git log --numstat`. Comprende modifiche a commenti e righe vuote: non applica il filtro lessicale del calcolo LOC al diff.
 
+## LOC Added
+
+Somma delle righe fisiche aggiunte nelle stesse revisioni di LOC Touched, inclusi commenti e righe vuote. Vale zero se non ci sono revisioni. Si riutilizzano i dati `Revision.added` gia' letti dalla cronologia Git, senza ulteriori scansioni o un nuovo calculator.
+
+`LocTouchedCalculator.calculateLines` somma aggiunte e cancellazioni in un solo passaggio e restituisce il record annidato `LineCounts`. Il controller usa `added()` per LOC Added e `touched()` (aggiunte + cancellazioni) per LOC Touched. Il metodo `calculate` conserva il risultato LOC Touched per i chiamanti esistenti. Il DAO verifica e aggiorna anche la colonna `LOC Added`. `FeatureCsvCheck` controlla somma, assenza di revisioni, colonne riordinate e colonna mancante; la pipeline verifica 0 <= LOC Added <= LOC Touched.
+
+## Max LOC Added
+
+Massimo delle righe aggiunte in una singola revisione della classe, come definito nella milestone 1. Usa le stesse revisioni e la stessa finestra di LOC Added e LOC Touched. Se non ci sono revisioni, o se tutte hanno zero aggiunte, vale zero. Non si sottraggono le righe cancellate.
+
+Il massimo viene calcolato nello stesso ciclo di `LocTouchedCalculator.calculateLines` e restituito nel campo `maxAdded` del record annidato `LineCounts`. Il controller valorizza `DatasetEntry.maxLocAdded` e il DAO verifica e aggiorna la colonna `Max LOC Added`. Non occorrono ulteriori letture Git o calculator. `FeatureCsvCheck` verifica massimo distinto dalla somma, zero senza revisioni, colonne riordinate e colonna mancante; la pipeline verifica 0 <= Max LOC Added <= LOC Added.
+
+### Cronologia condivisa di LOC Touched, LOC Added e Max LOC Added
+
 - La cronologia degli snapshot selezionati viene indicizzata una volta per elaborazione: parent dei commit, aggiunte/cancellazioni e cambi di percorso. Non vengono lanciati log separati per file o metrica. Per release si legge soltanto l'elenco dei file dello snapshot, poi si elaborano le revisioni in memoria.
 - Prima release: tutti i commit raggiungibili dal suo commit, inclusa la creazione iniziale dei file.
 - Release successive: commit raggiungibili dal commit corrente ma non da quello precedente (`precedente..corrente`). La lista ricevuta dal controller deve essere in ordine di release e completa dall'inizio del dataset. Non e' una finestra basata sulle date; su rami divergenti l'intervallo segue la raggiungibilita' Git.
@@ -34,7 +48,7 @@ Somma delle righe fisiche aggiunte e cancellate in tutte le revisioni considerat
 
 Scelta all'interno della stessa release.
 
-Il DAO copia il CSV di base nel file di output e legge la copia una sola volta. Righe e indici sono attributi del DAO, senza una classe interna CsvDataset. Il controller calcola LOC, LOC Touched, NR, Nfix e Nauth e il DAO aggiorna le celle per progetto, percorso e release, poi salva la copia. Il file finale conserva ordine delle righe e celle non aggiornate. In caso di errore durante il calcolo, la copia resta con i valori di base; il file originale non viene modificato.
+Il DAO copia il CSV di base nel file di output e legge la copia una sola volta. Righe e indici sono attributi del DAO, senza una classe interna CsvDataset. Il controller calcola LOC, LOC Touched, NR, Nfix, Nauth, LOC Added e Max LOC Added e il DAO aggiorna le celle per progetto, percorso e release, poi salva la copia. Il file finale conserva ordine delle righe e celle non aggiornate. In caso di errore durante il calcolo, la copia resta con i valori di base; il file originale non viene modificato.
 
 `GitHistoryCheck` confronta un campione distribuito sulle 12 release dello snapshot locale con il precedente `git log --follow`. Con `--fixture` verifica intervalli, rinomine pure, creazione, file invariati, NR e merge su un repository temporaneo; con `--pipeline` verifica tutte le 9.864 entry, preservazione del CSV e LOC contro StormDataset, scrivendo soltanto un output temporaneo. Il mapping del test STORM e' specifico dello snapshot corrente (0.10.0 non inclusa nel dataset base).
 
