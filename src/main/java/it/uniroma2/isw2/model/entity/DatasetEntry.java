@@ -21,31 +21,17 @@ public class DatasetEntry {
 
     private Integer maxLocAdded;
 
-    private Double averageLocAdded;
+    private Integer wmc;
 
-    private Integer churn;
+    private Integer dit;
 
-    private Integer maxChurn;
+    private Integer noc;
 
-    private Double averageChurn;
+    private Integer cbo;
 
-    private Integer changeSetSize;
+    private Integer rfc;
 
-    private Integer maxChangeSet;
-
-    private Double averageChangeSet;
-
-    private Double age;
-
-    private Double weightedAge;
-
-    private Double meanNs;
-
-    private Double meanLa;
-
-    private Double meanLd;
-
-    private Double meanNd;
+    private Integer lcom;
 
     private Integer nSmells;
 
@@ -131,108 +117,52 @@ public class DatasetEntry {
         this.maxLocAdded = maxLocAdded;
     }
 
-    public Double getAverageLocAdded() {
-        return averageLocAdded;
+    public Integer getWMC() {
+        return wmc;
     }
 
-    public void setAverageLocAdded(Double averageLocAdded) {
-        this.averageLocAdded = averageLocAdded;
+    public void setWMC(Integer wmc) {
+        this.wmc = wmc;
     }
 
-    public Integer getChurn() {
-        return churn;
+    public Integer getDIT() {
+        return dit;
     }
 
-    public void setChurn(Integer churn) {
-        this.churn = churn;
+    public void setDIT(Integer dit) {
+        this.dit = dit;
     }
 
-    public Integer getMaxChurn() {
-        return maxChurn;
+    public Integer getNOC() {
+        return noc;
     }
 
-    public void setMaxChurn(Integer maxChurn) {
-        this.maxChurn = maxChurn;
+    public void setNOC(Integer noc) {
+        this.noc = noc;
     }
 
-    public Double getAverageChurn() {
-        return averageChurn;
+    public Integer getCBO() {
+        return cbo;
     }
 
-    public void setAverageChurn(Double averageChurn) {
-        this.averageChurn = averageChurn;
+    public void setCBO(Integer cbo) {
+        this.cbo = cbo;
     }
 
-    public Integer getChangeSetSize() {
-        return changeSetSize;
+    public Integer getRFC() {
+        return rfc;
     }
 
-    public void setChangeSetSize(Integer changeSetSize) {
-        this.changeSetSize = changeSetSize;
+    public void setRFC(Integer rfc) {
+        this.rfc = rfc;
     }
 
-    public Integer getMaxChangeSet() {
-        return maxChangeSet;
+    public Integer getLCOM() {
+        return lcom;
     }
 
-    public void setMaxChangeSet(Integer maxChangeSet) {
-        this.maxChangeSet = maxChangeSet;
-    }
-
-    public Double getAverageChangeSet() {
-        return averageChangeSet;
-    }
-
-    public void setAverageChangeSet(Double averageChangeSet) {
-        this.averageChangeSet = averageChangeSet;
-    }
-
-    public Double getAge() {
-        return age;
-    }
-
-    public void setAge(Double age) {
-        this.age = age;
-    }
-
-    public Double getWeightedAge() {
-        return weightedAge;
-    }
-
-    public void setWeightedAge(Double weightedAge) {
-        this.weightedAge = weightedAge;
-    }
-
-    public Double getMeanNs() {
-        return meanNs;
-    }
-
-    public void setMeanNs(Double meanNs) {
-        this.meanNs = meanNs;
-    }
-
-    public Double getMeanLa() {
-        return meanLa;
-    }
-
-    public void setMeanLa(Double meanLa) {
-        this.meanLa = meanLa;
-    }
-
-    public Double getMeanLd() {
-        return meanLd;
-    }
-
-    public void setMeanLd(Double meanLd) {
-        this.meanLd = meanLd;
-    }
-
-    public Double getMeanNd() {
-        return meanNd;
-    }
-
-    public void setMeanNd(Double meanNd) {
-        this.meanNd = meanNd;
+    public void setLCOM(Integer lcom) {
+        this.lcom = lcom;
     }
 
     public Integer getNSmells() {

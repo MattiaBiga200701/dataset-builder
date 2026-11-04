@@ -88,3 +88,10 @@ Numero di email Author distinte nelle revisioni della classe all'interno della r
 
 
 ANCORA DA VERIFICARE SE CALCOLARLO NELLA RELEASE O DA RELEASE 0
+
+## Schema delle metriche object-oriented
+
+Dopo `Max LOC Added` lo schema contiene `WMC`, `DIT`, `NOC`, `CBO`, `RFC` e `LCOM`, seguite da `NSmells` e `Bugginess`. Le precedenti colonne non implementate (Average LOC Added, churn, change set, age e Mean NS/LA/LD/ND) sono rimosse.
+
+Le sei metriche CK hanno attributi Integer nullable e getter/setter in DatasetEntry. Sono predisposte nello schema ma non ancora calcolate: le celle restano vuote, senza inserire zeri fittizi. Prima del calcolo andranno fissate le convenzioni, in particolare la variante di LCOM (qui predisposta come conteggio intero). Il calcolo delle sette metriche esistenti, incluso Max LOC Added, resta invariato.
+ NE MANCANO 7 ANCORA DA DEFINIRE

@@ -88,19 +88,12 @@ namespace Model_Entity {
         -Integer nauth
         -Integer locAdded
         -Integer maxLocAdded
-        -Double averageLocAdded
-        -Integer churn
-        -Integer maxChurn
-        -Double averageChurn
-        -Integer changeSetSize
-        -Integer maxChangeSet
-        -Double averageChangeSet
-        -Double age
-        -Double weightedAge
-        -Double meanNs
-        -Double meanLa
-        -Double meanLd
-        -Double meanNd
+        -Integer wmc
+        -Integer dit
+        -Integer noc
+        -Integer cbo
+        -Integer rfc
+        -Integer lcom
         -Integer nSmells
         -String bugginess
     }
