@@ -72,10 +72,10 @@ public class DatasetCLI {
             }
 
             try {
-                System.out.println("Creazione del CSV con calcolo di LOC, LOC Touched, NR, Nfix, Nauth, LOC Added e Max LOC Added in corso...");
+                System.out.println("Creazione del CSV con calcolo di LOC, LOC Touched, NR, Nfix, Nauth, LOC Added, Max LOC Added, WMC e DIT in corso...");
                 Path output = new FeatureComputingController().createDatasetCsv(datasets);
                 System.out.println("File creato: " + output);
-                System.out.println("LOC, LOC Touched, NR, Nfix, Nauth, LOC Added e Max LOC Added compilati; le altre feature sono ancora da implementare.");
+                System.out.println("LOC, LOC Touched, NR, Nfix, Nauth, LOC Added, Max LOC Added e WMC compilati; DIT calcolata sulla gerarchia interna al progetto; le altre feature sono ancora da implementare.");
                 return;
             } catch (IOException | RuntimeException exception) {
                 System.err.println("Calcolo delle feature fallito: " + exception.getMessage());

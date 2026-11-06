@@ -1,6 +1,6 @@
 # UC2 — Calcolo delle feature: class diagram MVC
 
-Il secondo caso d'uso è identificato con il comando «Crea Dataset.csv con le feature calcolate» di `DatasetCLI`. Il diagramma descrive il codice attuale, con LOC, LOC Touched, NR, Nfix e Nauth implementate. Precondizioni: CSV di base già creato e lista dei `ReleaseDataset` disponibile, completa dall'inizio del dataset e ordinata per release.
+Il secondo caso d'uso è identificato con il comando «Crea Dataset.csv con le feature calcolate» di `DatasetCLI`. Il diagramma descrive il codice attuale, con LOC, LOC Touched, NR, Nfix, Nauth, LOC Added, Max LOC Added e WMC implementate. Precondizioni: CSV di base già creato e lista dei `ReleaseDataset` disponibile, completa dall'inizio del dataset e ordinata per release.
 
 I raggruppamenti rappresentano responsabilità architetturali, non nuovi package Java: `metrics` appartiene logicamente al Model, mentre i lettori Git si trovano nel package `utils`.
 
@@ -18,6 +18,7 @@ namespace View {
 namespace Controller {
     class FeatureComputingController {
         -FeatureComputingDAO featureComputingDAO
+        -WmcCalculator wmcCalculator
         -LocCalculator locCalculator
         -LocTouchedCalculator locTouchedCalculator
         -NrCalculator nrCalculator
@@ -28,6 +29,9 @@ namespace Controller {
 }
 
 namespace Model_Calcolo {
+    class WmcCalculator {
+        +calculate(String source) int
+    }
     class LocCalculator {
         +calculate(String source) int
     }
@@ -117,6 +121,7 @@ DatasetCLI ..> FeatureComputingController : crea e invoca
 DatasetCLI ..> ReleaseDataset : riceve e passa al controller
 FeatureComputingController --> "1" FeatureComputingDAO : accesso ai dati
 FeatureComputingController --> "1" LocCalculator : delega LOC
+FeatureComputingController --> "1" WmcCalculator : delega WMC
 FeatureComputingController --> "1" LocTouchedCalculator : delega LOC Touched
 FeatureComputingController --> "1" NrCalculator : delega NR
 FeatureComputingController --> "1" NfixCalculator : delega Nfix
@@ -142,7 +147,7 @@ GitSourceReader ..> Source : crea
 | View | `DatasetCLI` | Mostra il menu, legge la scelta, invoca il controller e mostra il percorso prodotto o l'errore. |
 | Controller | `FeatureComputingController` | Coordina copia/lettura del CSV, preparazione della storia, iterazione delle release e delle entry, calcolo delle metriche e salvataggio. Gestisce anche la cache LOC per blob. |
 | Model: dati | `ReleaseDataset`, `DatasetEntry`, `Release` | Rappresentano snapshot, righe del dataset e release. `DatasetEntry` conserva i risultati delle metriche. |
-| Model: calcolo | `LocCalculator`, `LocTouchedCalculator`, `NrCalculator`, `NfixCalculator`, `NauthCalculator` | Implementano gli algoritmi senza dipendere da View o Controller. LOC analizza il testo; LOC Touched somma aggiunte e cancellazioni; NR conta le revisioni distinte, incluse quelle a zero righe. Nfix conta i commit collegati agli ID dei bug. |
+| Model: calcolo | `LocCalculator`, `LocTouchedCalculator`, `NrCalculator`, `NfixCalculator`, `NauthCalculator`, `WmcCalculator` | Implementano gli algoritmi senza dipendere da View o Controller. LOC analizza il testo; LOC Touched somma aggiunte e cancellazioni; NR conta le revisioni distinte, incluse quelle a zero righe. Nfix conta i commit collegati agli ID dei bug. |
 | Model: accesso ai dati | `FeatureComputingDAO`, `GitSourceReader`, `GitHistoryReader`, `GitSourceReader.Source`, `GitHistoryReader.Revision` | Gestiscono ticket Jira, CSV, sorgenti e cronologia Git. Il DAO mantiene in memoria righe e indici del CSV; i lettori recuperano i dati Git. |
 
 Il punto centrale dell'MVC è la separazione delle responsabilità: **la View interagisce con l'utente, il Controller coordina il caso d'uso e il Model gestisce dati, algoritmi e accesso alle risorse**. Il Model non conosce né CLI né controller. La View conosce `ReleaseDataset`, perché passa al controller i risultati ottenuti nel primo caso d'uso; questo non introduce accesso diretto ai DAO.
@@ -180,3 +185,5 @@ Il controller riceve dal DAO gli ID e le revisioni della classe nella release. C
 `Revision` nel diagramma abbrevia `GitHistoryReader.Revision`: e' un record annidato nel reader, come `GitSourceReader.Source`. E' un contenitore tecnico immutabile dei dati Git, non una entity del dataset; le entity conservano i loro getter e setter.
 
 Per Nauth, `GitHistoryReader` legge l'email Author nello stesso log Git e la conserva in `Revision.authorEmail`. Il DAO restituisce le revisioni al controller, che estrae una `List<String>` e la passa a `NauthCalculator`. Il calcolatore non dipende da DAO o reader; conta le email distinte normalizzate. Il DAO scrive `DatasetEntry.nauth` nella colonna `Nauth`.
+
+WMC usa lo stesso sorgente Git di LOC e una cache per blob: il controller passa il testo a WmcCalculator e il DAO scrive DatasetEntry.wmc. Le regole di aggregazione per file e di conteggio sono descritte in feature-conventions.md.

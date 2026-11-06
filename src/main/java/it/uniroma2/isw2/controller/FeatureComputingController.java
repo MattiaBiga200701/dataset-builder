@@ -4,6 +4,8 @@ import it.uniroma2.isw2.utils.GitHistoryReader.Revision;
 
 import it.uniroma2.isw2.model.dao.FeatureComputingDAO;
 import it.uniroma2.isw2.metrics.LocCalculator;
+import it.uniroma2.isw2.metrics.WmcCalculator;
+import it.uniroma2.isw2.metrics.DitCalculator;
 import it.uniroma2.isw2.metrics.LocTouchedCalculator;
 import it.uniroma2.isw2.metrics.NrCalculator;
 import it.uniroma2.isw2.model.entity.DatasetEntry;
@@ -22,6 +24,8 @@ import it.uniroma2.isw2.utils.GitSourceReader;
 public class FeatureComputingController {
     private final FeatureComputingDAO featureComputingDAO;
     private final LocCalculator locCalculator;
+    private final WmcCalculator wmcCalculator;
+    private final DitCalculator ditCalculator;
     private final LocTouchedCalculator locTouchedCalculator;
     private final NrCalculator nrCalculator;
     private final NfixCalculator nfixCalculator;
@@ -34,6 +38,8 @@ public class FeatureComputingController {
     public FeatureComputingController(FeatureComputingDAO featureComputingDAO) {
         this.featureComputingDAO = Objects.requireNonNull(featureComputingDAO, "featureComputingDAO");
         this.locCalculator = new LocCalculator();
+        this.wmcCalculator = new WmcCalculator();
+        this.ditCalculator = new DitCalculator();
         this.locTouchedCalculator = new LocTouchedCalculator();
         this.nrCalculator = new NrCalculator();
         this.nfixCalculator = new NfixCalculator();
@@ -50,11 +56,17 @@ public class FeatureComputingController {
             Set<String> fixedBugKeys = Set.copyOf(dao.getTicketIDs(DatasetEntry.getProjectName()));
             dao.prepareHistory(datasets.stream().map(ReleaseDataset::getCommitHash).toList());
             Map<String, Integer> locByBlob = new HashMap<>();
+            Map<String, Integer> wmcByBlob = new HashMap<>();
             String previousCommit = null;
             for (ReleaseDataset dataset : datasets) {
                 Map<String, List<Revision>> changesByFile = dao.getChanges(previousCommit, dataset.getCommitHash());
+                Map<String, String> sources = new HashMap<>();
                 for (DatasetEntry entry : dataset.getEntries()) {
-                    locComputing(dataset, entry, locByBlob);
+                    sources.put(entry.getClassName(), sourceComputing(dataset, entry, locByBlob, wmcByBlob));
+                }
+                Map<String, Integer> ditByFile = ditCalculator.calculate(sources);
+                for (DatasetEntry entry : dataset.getEntries()) {
+                    entry.setDIT(ditByFile.get(entry.getClassName()));
                     locTouchedComputing(entry, changesByFile);
                     nrComputing(entry, changesByFile);
                     nfixComputing(entry, changesByFile, fixedBugKeys);
@@ -68,10 +80,23 @@ public class FeatureComputingController {
         return output.toAbsolutePath();
     }
 
-    private void locComputing(ReleaseDataset dataset, DatasetEntry entry,
-                              Map<String, Integer> locByBlob) throws IOException {
+    private String sourceComputing(ReleaseDataset dataset, DatasetEntry entry,
+                                 Map<String, Integer> locByBlob,
+                                 Map<String, Integer> wmcByBlob) throws IOException {
         GitSourceReader.Source source = featureComputingDAO.getSource(dataset.getCommitHash(), entry.getClassName());
         entry.setLOC(locByBlob.computeIfAbsent(source.blob(), blob -> locCalculator.calculate(source.text())));
+        Integer wmc = wmcByBlob.get(source.blob());
+        if (wmc == null) {
+            try {
+                wmc = wmcCalculator.calculate(source.text());
+            } catch (IOException e) {
+                throw new IOException("WMC: " + entry.getClassName() + " al commit "
+                        + dataset.getCommitHash() + ": " + e.getMessage(), e);
+            }
+            wmcByBlob.put(source.blob(), wmc);
+        }
+        entry.setWMC(wmc);
+        return source.text();
     }
 
     private void nfixComputing(DatasetEntry entry, Map<String, List<Revision>> changesByFile,

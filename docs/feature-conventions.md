@@ -93,5 +93,37 @@ ANCORA DA VERIFICARE SE CALCOLARLO NELLA RELEASE O DA RELEASE 0
 
 Dopo `Max LOC Added` lo schema contiene `WMC`, `DIT`, `NOC`, `CBO`, `RFC` e `LCOM`, seguite da `NSmells` e `Bugginess`. Le precedenti colonne non implementate (Average LOC Added, churn, change set, age e Mean NS/LA/LD/ND) sono rimosse.
 
-Le sei metriche CK hanno attributi Integer nullable e getter/setter in DatasetEntry. Sono predisposte nello schema ma non ancora calcolate: le celle restano vuote, senza inserire zeri fittizi. Prima del calcolo andranno fissate le convenzioni, in particolare la variante di LCOM (qui predisposta come conteggio intero). Il calcolo delle sette metriche esistenti, incluso Max LOC Added, resta invariato.
- NE MANCANO 7 ANCORA DA DEFINIRE
+Le sei metriche CK hanno attributi Integer nullable e getter/setter in DatasetEntry. WMC e DIT vengono calcolate come descritto sotto; le altre quattro restano vuote, senza inserire zeri fittizi. Prima del calcolo andranno fissate le convenzioni, in particolare la variante di LCOM (qui predisposta come conteggio intero). Il calcolo delle sette metriche esistenti, incluso Max LOC Added, resta invariato.
+ Restano da implementare NOC, CBO, RFC, LCOM e NSmells.
+
+## WMC (Weighted Methods per Class)
+
+Definizione generale: WMC = somma dei pesi di complessita' dei metodi. Con tutti i pesi pari a 1, WMC e' il numero di metodi dichiarati. Si adotta questa variante, non la somma delle complessita' ciclomatiche.
+
+Fonti: slide del professore `Software Metrics and their use V2.pdf`, pagina 13 (conteggio dei metodi come approssimazione); Chidamber e Kemerer, `A_metrics_suite_for_object_oriented_design.pdf`, pagina PDF 7 / pagina stampata 482 (caso esplicito dei pesi unitari). Entrambi sono in `SLIDES FALESSI/OneDrive_1_17-10-2026/3 - Utilizzo di metriche`. Anche la documentazione ufficiale di [Project Analyzer](https://www.aivosto.com/project/help/pm-oo-ck.html) usa un conteggio a peso unitario, con proprie convenzioni sui costruttori.
+
+Convenzioni operative del progetto:
+
+- Una riga rappresenta un file Java: WMC e' la somma dei conteggi dei tipi presenti nel file, inclusi tipi aggiuntivi, annidati, locali e anonimi. Questa aggregazione per file non equivale alla WMC della sola classe esterna.
+- Ogni dichiarazione di metodo conta 1: tutte le visibilita', metodi statici, astratti, native, default, override, overload e membri delle annotation. Un overload conta separatamente.
+- Costruttori (anche compatti dei record), inizializzatori, lambda, chiamate, metodi ereditati e metodi impliciti generati dal compilatore non contano. Nei record contano gli accessor solo se scritti esplicitamente. Sono scelte del progetto, non prescrizioni delle slide.
+- Si analizza lo snapshot al commit della release, non la cronologia delle revisioni. LOC e WMC condividono la stessa lettura del sorgente dal DAO; ogni risultato WMC e' memorizzato per blob durante l'elaborazione.
+- `WmcCalculator` usa il parser AST del JDK (JavacTask), senza nuove dipendenze Maven. Esegue solo parsing, senza compilazione, risoluzione delle dipendenze o annotation processor. Occorre il JDK 25 gia' richiesto dal progetto; il parsing usa esplicitamente `--source 17` per accettare anche i punti e virgola ridondanti dopo gli import presenti nei sorgenti storici STORM (rifiutati dalla grammatica Java 25): sintassi non supportata o malformata interrompe il calcolo con percorso, commit e diagnostica, senza inventare uno zero.
+- Il controller coordina il calcolatore nel package metrics, valorizza DatasetEntry.wmc e il DAO verifica e scrive la colonna WMC. Lo schema e il CSV di base restano invariati. Zero significa nessun metodo dichiarato.
+
+Verifiche: `WmcCalculatorCheck` copre i casi sintattici e gli errori; `FeatureCsvCheck` verifica due snapshot con WMC 0 e 1, colonne riordinate e WMC mancante; `GitHistoryCheck --pipeline` verifica il calcolo sull'intero dataset locale con output temporaneo e ticket simulati vuoti, senza rigenerare output/Dataset.csv.
+
+Compaiono degli zeri poichè sono stati esclusi i costruttori inizializzatori e anche metodi ereditati
+
+## DIT (Depth of Inheritance Tree)
+
+Riferimenti: Falessi, `Software Metrics and their use V2.pdf`, slide 13: lunghezza del percorso dalla classe alla radice. Il paper originale di Chidamber e Kemerer, `A_metrics_suite_for_object_oriented_design.pdf`, pagina PDF 8 (stampata 483), precisa che in presenza di piu' percorsi si prende il massimo. I file sono nella cartella delle slide `3 - Utilizzo di metriche`.
+
+Nel progetto si misura la **gerarchia interna allo snapshot della release**. Si contano solo gli archi verso tipi dichiarati nei sorgenti Java della release forniti al calcolatore. Una superclasse esterna termina il percorso e non aggiunge livelli: questo vale anche per Object e per le classi JDK, indipendentemente dalla disponibilita' della libreria. Una classe senza superclassi interne ha DIT = 0. Esempio: A extends B, B extends Libreria implica DIT(A) = 1 e DIT(B) = 0. Una catena C -> B -> A -> Object ha valori 2, 1, 0 rispettivamente. Questo perimetro e' la convenzione adottata nel progetto, non una prescrizione Java specificata dalle slide.
+
+- Le classi seguono la superclasse; implements non aumenta DIT. Le interfacce seguono extends e prendono il massimo in caso di piu' genitori.
+- Per una riga/file si prende il massimo fra i tipi dichiarati nel file, inclusi quelli annidati, locali e anonimi.
+- DitCalculator risolve package e import tramite JavacTask, poi percorre soltanto i tipi dello snapshot. Il controller riutilizza i sorgenti letti per LOC/WMC e ricalcola la gerarchia per release: una superclasse puo' cambiare anche quando il file della sottoclasse resta identico.
+- Le librerie mancanti non producono piu' celle vuote: la ricerca si arresta al confine dei sorgenti disponibili. Un tipo non risolto viene trattato come esterno; quindi sorgenti di progetto omessi dallo snapshot possono sottostimare DIT.
+- Restano non disponibili (cella vuota) i casi anomali di cicli, dichiarazioni ambigue/duplicate o dichiarazioni non risolvibili dal compilatore; non sono casi di semplice ereditarieta' da librerie. Gli errori di sintassi interrompono il calcolo.
+- Il DAO scrive DatasetEntry.dit nella colonna DIT gia' esistente. Per aggiornare il CSV si usa il normale comando di calcolo delle feature.

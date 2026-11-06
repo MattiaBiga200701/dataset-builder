@@ -146,6 +146,8 @@ public class GitHistoryCheck {
                 if (maxAdded < 0 || maxAdded > added || (added > 0 && maxAdded == 0)) {
                     throw new AssertionError("Max LOC Added fuori intervallo");
                 }
+                if (Integer.parseInt(row.get(10)) < 0) throw new AssertionError("WMC negativa");
+                if (!row.get(11).isBlank() && Integer.parseInt(row.get(11)) < 0) throw new AssertionError("DIT negativa");
                 int nauth = Integer.parseInt(row.get(7));
                 int nr = Integer.parseInt(row.get(5));
                 if (nauth < 0 || nauth > nr || (nr > 0 && nauth == 0)) throw new AssertionError("Nauth fuori intervallo");
@@ -153,15 +155,16 @@ public class GitHistoryCheck {
                 if (nfix < 0 || nfix > Integer.parseInt(row.get(5))) throw new AssertionError("Nfix fuori intervallo");
                 if (!live && nfix != 0) throw new AssertionError("Nfix con ticket vuoti");
                 for (int col = 0; col < row.size(); col++) {
-                    if (col != 3 && col != 4 && col != 5 && col != 6 && col != 7 && col != 8 && col != 9 && !row.get(col).equals(base.get(i).get(col))) {
+                    if (col != 3 && col != 4 && col != 5 && col != 6 && col != 7 && col != 8 && col != 9 && col != 10 && col != 11 && !row.get(col).equals(base.get(i).get(col))) {
                         throw new AssertionError("Cella non calcolata modificata");
                     }
                 }
             }
             if (!java.util.Arrays.equals(originalBytes, Files.readAllBytes(original))) throw new AssertionError("Base modificata");
             if (!actual.get(1).get(4).equals("1848")) throw new AssertionError("Config.java LOC Touched");
-            System.out.printf("OK: pipeline %d entry in %.3f s; LOC identici al riferimento, LOC Touched, LOC Added, Max LOC Added, NR, Nfix e Nauth valorizzati, base invariata.%n",
+            System.out.printf("OK: pipeline %d entry in %.3f s; LOC identici al riferimento, LOC Touched, LOC Added, Max LOC Added, NR, Nfix, Nauth e WMC valorizzati, base invariata.%n",
                     actual.size() - 1, seconds);
+            System.out.println("DIT non disponibili: " + actual.subList(1, actual.size()).stream().filter(row -> row.get(11).isBlank()).count());
             System.out.println("Righe con Nfix > 0: " + actual.subList(1, actual.size()).stream()
                     .filter(row -> Integer.parseInt(row.get(6)) > 0).count());
         } finally {

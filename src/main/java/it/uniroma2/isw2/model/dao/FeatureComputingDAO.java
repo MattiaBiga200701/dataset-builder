@@ -79,7 +79,7 @@ public class FeatureComputingDAO implements AutoCloseable {
             }
         }
         for (String name : List.of("Project Name", "Class Name", "Release ID",
-                Feature.LOC.getColumnName(), Feature.LOC_TOUCHED.getColumnName(), Feature.LOC_ADDED.getColumnName(), Feature.MAX_LOC_ADDED.getColumnName(), Feature.NR.getColumnName(), Feature.NFIX.getColumnName(), Feature.NAUTH.getColumnName())) {
+                Feature.LOC.getColumnName(), Feature.LOC_TOUCHED.getColumnName(), Feature.LOC_ADDED.getColumnName(), Feature.MAX_LOC_ADDED.getColumnName(), Feature.NR.getColumnName(), Feature.NFIX.getColumnName(), Feature.NAUTH.getColumnName(), Feature.WMC.getColumnName(), Feature.DIT.getColumnName())) {
             if (!columns.containsKey(name)) throw new IOException("Colonna mancante: " + name);
         }
         for (List<String> row : rows.subList(1, rows.size())) {
@@ -114,6 +114,8 @@ public class FeatureComputingDAO implements AutoCloseable {
         row.set(columns.get(Feature.NR.getColumnName()), Objects.requireNonNull(entry.getNr(), "NR").toString());
         row.set(columns.get(Feature.NFIX.getColumnName()), Objects.requireNonNull(entry.getNfix(), "Nfix").toString());
         row.set(columns.get(Feature.NAUTH.getColumnName()), Objects.requireNonNull(entry.getNauth(), "Nauth").toString());
+        row.set(columns.get(Feature.WMC.getColumnName()), Objects.requireNonNull(entry.getWMC(), "WMC").toString());
+        row.set(columns.get(Feature.DIT.getColumnName()), entry.getDIT() == null ? "" : entry.getDIT().toString());
     }
 
     public Map<String, List<Revision>> getChanges(String previousCommit, String currentCommit) throws IOException {
